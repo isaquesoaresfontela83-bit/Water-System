@@ -1,3 +1,16 @@
+# Water System e Water Control 15.23.33 — 21/11/2026
+
+Lançamento conjunto `2026-11-21-water-quote-photos-01` sobre os pacotes ativos 15.23.32. O novo orçamento mostra fotos do catálogo, preço por unidade, subtotal e total projetado. A foto é preservada nos itens salvos e incluída na prévia e no PDF. Os modelos de documento, comissões, regras de desconto e ajustes recentes dos dois painéis integram o mesmo lançamento.
+
+| Aplicação | Versão ativa do Worker | Implantação | Módulos | Bindings |
+| --- | --- | --- | --- | --- |
+| Water System | `d7b171c3-cefe-417b-bbda-716d34e71170` | `e0bdb337-61d8-4231-8642-0521f06a7290` | 146 | 41 |
+| Water Control | `c33a7d94-8091-4ebf-b913-f0847ad1358c` | `7d3cfaa3-fd65-4471-b384-9a02d6c6be6b` | 77 | 29 |
+
+A preparação conferiu os hashes da base e da publicação. Passaram os 63 testes do repositório e as verificações dirigidas de cálculo, criação de orçamento e PDF com foto. As páginas de acesso, os endpoints de saúde dos dois domínios e os três arquivos públicos novos responderam sobre a versão publicada. O fluxo de escrita foi verificado com dados de teste nos módulos preparados.
+
+---
+
 # Water System e Water Control 15.23.27 — 20/11/2026
 
 Lançamento conjunto `2026-11-20-water-mobile-transparent-logo-01`. O fundo branco, a borda e o preenchimento foram removidos apenas do símbolo no cabeçalho móvel do System. O próprio monograma já tem transparência; o tema escuro recebe o mesmo ajuste de contraste usado na identidade existente. A folha de estilo tem um endereço novo para não reaproveitar o cache antigo.
