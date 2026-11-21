@@ -41,6 +41,11 @@ export function poolQuoteQuantity(item, dimensions) {
         || dimensions.quantity !== undefined || dimensions.quantidade !== undefined;
     return quantityField ? measure("quantity") : 1;
 }
+export function isQuoteProductPhoto(value) {
+    return typeof value === "string" && value.length <= 24000
+        && /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(value);
+}
+
 export function poolQuoteConfigError(value) {
     const object = (value) => !!value && typeof value === "object" && !Array.isArray(value);
     const named = (value) => typeof value === "string" && !!value.trim();
@@ -51,6 +56,7 @@ export function poolQuoteConfigError(value) {
     if (!Array.isArray(value.catalog) || value.catalog.length > 50)
         return "Use até 50 categorias no catálogo.";
     const categories = new Set();
+    let photoSize = 0;
     for (const category of value.catalog) {
         if (!object(category) || !named(category.category))
             return "Informe o nome de cada categoria.";
@@ -66,6 +72,11 @@ export function poolQuoteConfigError(value) {
             if (items.has(item.name.trim()))
                 return `Há itens com o mesmo nome em ${category.category}.`;
             items.add(item.name.trim());
+            if (item.photo) {
+                if (!isQuoteProductPhoto(item.photo)) return `Confira a foto de ${item.name}.`;
+                photoSize += item.photo.length;
+                if (photoSize > 750000) return "O catálogo atingiu o limite de fotos. Remova imagens antes de adicionar novas.";
+            }
             if (typeof item.price !== "number" || !Number.isFinite(item.price) || item.price < 0 || typeof item.markup !== "number" || !Number.isFinite(item.markup) || item.markup < 0)
                 return `Confira o preço e a margem de ${item.name}.`;
             if (!Array.isArray(item.fields) || item.fields.length > 50)

@@ -112,7 +112,7 @@ export async function editedRecord(entity, body, existing, { organizationId, can
             const dimensions = line.dimensions && typeof line.dimensions === "object" && !Array.isArray(line.dimensions) ? line.dimensions : {};
             const quantity = poolQuoteQuantity(item, dimensions);
             if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1_000_000) fail("Informe medidas válidas.");
-            return { category: category.category, name: item.name, unit: item.unit, quantity, unitPrice: item.price, markup: item.markup, totalCents: Math.round(quantity * item.price * (1 + item.markup / 100) * 100), dimensions };
+            return { category: category.category, name: item.name, unit: item.unit, quantity, unitPrice: item.price, markup: item.markup, totalCents: Math.round(quantity * item.price * (1 + item.markup / 100) * 100), dimensions, ...(item.photo ? { photo: item.photo } : {}) };
         });
         patch.service = calculated.length ? calculated.map(line => line.name).join(", ") : text(body.service ?? existing.service);
         if (!patch.service) fail("Informe o serviço.");
@@ -128,7 +128,7 @@ export async function editedRecord(entity, body, existing, { organizationId, can
         const card = quoteCardPayment(baseTotal, paymentMethod === "credit" ? cardRate : 0);
         patch.totalCents = card.totalCents;
         details(["paymentTerms"]);
-        Object.assign(notes.details, { ...(calculated.length ? { poolItems: JSON.stringify(calculated), products: JSON.stringify(calculated) } : {}), travel: (travelCents / 100).toFixed(2), urgency: urgency.label, urgencyRate: String(rate), paymentMethod, installments: String(installments), cardRate: String(cardRate), cardFee: String(card.feeCents), baseTotal: String(baseTotal), installmentValue: String(Math.ceil(card.totalCents / installments)) });
+        Object.assign(notes.details, { ...(calculated.length ? { poolItems: JSON.stringify(calculated), products: JSON.stringify(calculated.map(({ photo, ...line }) => line)) } : {}), travel: (travelCents / 100).toFixed(2), urgency: urgency.label, urgencyRate: String(rate), paymentMethod, installments: String(installments), cardRate: String(cardRate), cardFee: String(card.feeCents), baseTotal: String(baseTotal), installmentValue: String(Math.ceil(card.totalCents / installments)) });
         noteChanged = true;
     } else fail("Tipo de registro inválido.");
     if (noteChanged) patch.notes = JSON.stringify(notes);

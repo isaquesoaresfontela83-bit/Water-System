@@ -22,6 +22,44 @@ async function brandMarkDataUrl() {
         return null;
     }
 }
+function addProductPhotos(pdf, itemsJson, quoteNumber, left, right) {
+    let items;
+    try { items = JSON.parse(itemsJson || "[]"); }
+    catch { return; }
+    if (!Array.isArray(items)) return;
+
+    let slot = 0;
+    for (const item of items) {
+        if (typeof item?.photo !== "string" || item.photo.length > 24000
+            || !/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(item.photo)) continue;
+        let size;
+        try { size = pdf.getImageProperties(item.photo); }
+        catch { continue; }
+        if (!size.width || !size.height) continue;
+
+        if (slot % 4 === 0) {
+            pdf.addPage();
+            pdf.setTextColor(19, 59, 72);
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(16);
+            pdf.text("Fotos dos produtos", left, 22);
+            pdf.setFontSize(10);
+            pdf.text(quoteNumber, right, 22, { align: "right" });
+        }
+        const cellWidth = (right - left - 10) / 2;
+        const x = left + (slot % 2) * (cellWidth + 10);
+        const y = 34 + Math.floor((slot % 4) / 2) * 110;
+        const scale = Math.min(cellWidth / size.width, 82 / size.height);
+        const width = size.width * scale;
+        const height = size.height * scale;
+        try { pdf.addImage(item.photo, "JPEG", x + (cellWidth - width) / 2, y, width, height, undefined, "FAST"); }
+        catch { continue; }
+        pdf.setFontSize(10);
+        pdf.text(pdf.splitTextToSize(String(item.name || "Produto"), cellWidth).slice(0, 2), x, y + height + 6);
+        slot += 1;
+    }
+}
+
 export async function generateQuotePdf(quote, organizationName) {
     const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF({ unit: "mm", format: "a4", compress: true });
@@ -116,5 +154,6 @@ export async function generateQuotePdf(quote, organizationName) {
     pdf.setTextColor(117, 141, 148);
     pdf.text(`Proposta emitida pela ${organizationName}`.slice(0, 70), left, 283);
     pdf.text("Gerado pelo Water System", right, 283, { align: "right" });
+    addProductPhotos(pdf, quoteNotes.details.poolItems, quote.quoteNumber, left, right);
     pdf.save(`${quote.quoteNumber.toLowerCase()}-${quote.clientName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`);
 }

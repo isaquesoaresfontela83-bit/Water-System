@@ -85,7 +85,7 @@ async function createRecord(request, context) {
                     if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1_000_000)
                         throw new RequestError(`Informe medidas válidas para ${item.name}.`, 400);
                     const totalCents = Math.round(quantity * item.price * (1 + item.markup / 100) * 100);
-                    return { category: category.category, name: item.name, unit: item.unit, quantity, unitPrice: item.price, markup: item.markup, totalCents, dimensions };
+                    return { category: category.category, name: item.name, unit: item.unit, quantity, unitPrice: item.price, markup: item.markup, totalCents, dimensions, ...(item.photo ? { photo: item.photo } : {}) };
                 });
             }
             const materialsCents = calculatedItems.length ? calculatedItems.reduce((sum, item) => sum + Number(item.totalCents), 0) : cents(body.materials);
@@ -116,7 +116,7 @@ async function createRecord(request, context) {
                 totalCents,
                 status: "rascunho",
                 validUntil: calendarDate(body.validUntil, "Validade"),
-                notes: structuredNotes({ ...body, products: calculatedItems.length ? JSON.stringify(calculatedItems) : body.products, poolItems: calculatedItems.length ? JSON.stringify(calculatedItems) : body.poolItems, urgency: urgency.label, urgencyRate: String(surchargePercent), paymentMethod, installments: String(installments), cardRate: String(cardRate), cardFee: String(cardFeeCents), baseTotal: String(baseTotalCents), installmentValue: String(installmentCents) }, ["products", "poolItems", "travel", "urgency", "urgencyRate", "paymentTerms", "paymentMethod", "installments", "cardRate", "cardFee", "baseTotal", "installmentValue", "poolDimensions"]),
+                notes: structuredNotes({ ...body, products: calculatedItems.length ? JSON.stringify(calculatedItems.map(({ photo, ...line }) => line)) : body.products, poolItems: calculatedItems.length ? JSON.stringify(calculatedItems) : body.poolItems, urgency: urgency.label, urgencyRate: String(surchargePercent), paymentMethod, installments: String(installments), cardRate: String(cardRate), cardFee: String(cardFeeCents), baseTotal: String(baseTotalCents), installmentValue: String(installmentCents) }, ["products", "poolItems", "travel", "urgency", "urgencyRate", "paymentTerms", "paymentMethod", "installments", "cardRate", "cardFee", "baseTotal", "installmentValue", "poolDimensions"]),
                 createdAt,
             };
             if (usesSupabase()) {
