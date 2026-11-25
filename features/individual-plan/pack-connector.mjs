@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { individualControlPage, individualControlClient } from "./page.mjs";
 import { pricingBrowserAsset, updatePricingView } from "./patch-pricing.mjs";
 import { patchBillingView, patchFeatureGate, systemBrowserBilling, systemBrowserFeatures } from "./patch-platform.mjs";
+import { buildIndividualEntry } from "./connected.mjs";
 
 const [pricingPath, featurePath, billingPath] = process.argv.slice(2);
 if (!pricingPath || !featurePath || !billingPath) throw new Error("Informe os três módulos públicos da base ativa.");
@@ -26,7 +27,9 @@ const browser = {
     [systemBrowserBilling]: patchBillingView(readFileSync(billingPath, "utf8")),
 };
 const portableFiles = ["catalog.mjs", "patch-pricing.mjs", "patch-platform.mjs", "connected.mjs"];
-const portable = portableFiles.map(name => local(name).replace(/^import [^\n]+\n/gm, "").replace(/^export /gm, "")).join("\n");
+const portable = portableFiles.map(name => local(name)
+    .replace(/^(?:import [^\n]+\n)+/, "")
+    .replace(/^export (?=(?:async )?function |const )/gm, "")).join("\n");
 for (const code of [...Object.values(modules), ...Object.values(browser), portable, local("control-client.js")])
     execFileSync(process.execPath, ["--input-type=module", "--check"], { input: code });
 const css = local("styles.css");
@@ -40,4 +43,10 @@ const resources = {
     },
     control: { css, adminLink: Boolean(individualControlClient), adminPage: individualControlPage(), adminClient: local("control-client.js") },
 };
+const packedEntry = new Function(portable + "\nreturn buildIndividualEntry;")();
+for (const [role, resource] of Object.entries(resources)) {
+    const code = packedEntry(role, resource);
+    if (code !== buildIndividualEntry(role, resource)) throw new Error("A montagem do Worker mudou o código da entrada.");
+    execFileSync(process.execPath, ["--input-type=module", "--check"], { input: code });
+}
 process.stdout.write(JSON.stringify({ modules, portable, resources }));

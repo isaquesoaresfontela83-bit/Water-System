@@ -20,6 +20,16 @@ const individualEncoder = new TextEncoder();
 const individualDecoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const individualPath = (account, role) => `/accounts/${account}/workers/scripts/fama-${role}-app`;
 
+export function buildIndividualEntry(role, resources) {
+    const original = JSON.stringify("./" + individualBaseline[role].entry);
+    return [
+        `import app from ${original};`,
+        `export * from ${original};`,
+        'import {withIndividualPlan} from "./water-individual-worker.mjs";',
+        `export default withIndividualPlan(app,${JSON.stringify(role)},${JSON.stringify(resources)});`,
+    ].join("\n");
+}
+
 async function individualDigest(bytes) {
     const value = await crypto.subtle.digest("SHA-256", bytes);
     return Array.from(new Uint8Array(value), byte => byte.toString(16).padStart(2, "0")).join("");
@@ -93,11 +103,7 @@ export async function prepareIndividualWorker(api, account, role, sources, uploa
         if (parts.has(name) || typeof sources.modules[name] !== "string") throw new Error("Módulo novo inválido: " + name);
         parts.set(name, { type: "application/javascript+module", bytes: individualEncoder.encode(sources.modules[name]) });
     }
-    const entry = `import app from "./${previous.entry}";
-export * from "./${previous.entry}";
-import {withIndividualPlan} from "./water-individual-worker.mjs";
-export default withIndividualPlan(app,${JSON.stringify(role)},${JSON.stringify(sources.resources)});
-`;
+    const entry = buildIndividualEntry(role, sources.resources);
     parts.set(individualMain, { type: "application/javascript+module", bytes: individualEncoder.encode(entry) });
     const hash = await individualFingerprint(parts);
     const result = {
