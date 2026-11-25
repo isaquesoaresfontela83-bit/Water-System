@@ -1,0 +1,239 @@
+#planos.plans-public-grid:has(.individual-plan-card) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.individual-plan-card {
+    min-width: 0;
+}
+
+.individual-plan-card .individual-price {
+    font-size: clamp(1.6rem, 2.3vw, 2.25rem);
+}
+
+@media (min-width: 1120px) {
+    #planos.plans-public-grid:has(.individual-plan-card) {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 670px) {
+    #planos.plans-public-grid:has(.individual-plan-card) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.individual-page {
+    color-scheme: light;
+    --individual-ink: #102b41;
+    --individual-muted: #436076;
+    --individual-line: #cbdde8;
+    --individual-accent: #07588e;
+    min-height: 100vh;
+    margin: 0;
+    background: #f1f7fb;
+    color: var(--individual-ink);
+    font: 1rem / 1.55 system-ui, sans-serif;
+}
+
+.individual-page *, .individual-page *::before, .individual-page *::after {
+    box-sizing: border-box;
+}
+
+.individual-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    width: min(100% - 2rem, 64rem);
+    min-height: 4.75rem;
+    margin-inline: auto;
+    border-bottom: 1px solid var(--individual-line);
+}
+
+.individual-nav a {
+    color: var(--individual-accent);
+    font-weight: 650;
+    text-underline-offset: .2em;
+}
+
+.individual-nav .individual-brand {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    color: var(--individual-ink);
+    text-decoration: none;
+}
+
+.individual-brand img {
+    flex-shrink: 0;
+    object-fit: contain;
+}
+
+.individual-layout {
+    width: min(100% - 2rem, 64rem);
+    margin: 0 auto;
+    padding: clamp(2.25rem, 5vw, 4rem) 0 4rem;
+}
+
+.individual-hero {
+    max-width: 42rem;
+    margin-bottom: 1.8rem;
+}
+
+.individual-kicker {
+    margin: 0 0 .4rem;
+    color: var(--individual-accent);
+    font-weight: 750;
+}
+
+.individual-hero h1 {
+    margin: 0 0 .85rem;
+    font-size: clamp(2rem, 5vw, 3.3rem);
+    line-height: 1.12;
+    letter-spacing: -.045em;
+}
+
+.individual-hero p:last-child, .individual-submit p {
+    margin: 0;
+    color: var(--individual-muted);
+}
+
+.individual-form {
+    padding: clamp(1rem, 3.4vw, 2rem);
+    border: 1px solid var(--individual-line);
+    border-radius: 1rem;
+    background: #fff;
+}
+
+.individual-form fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.individual-form legend {
+    margin-bottom: 1rem;
+    padding: 0;
+    font-size: 1.2rem;
+    font-weight: 750;
+}
+
+.individual-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .65rem;
+}
+
+.individual-option {
+    display: flex;
+    align-items: start;
+    gap: .65rem;
+    padding: .8rem;
+    border: 1px solid var(--individual-line);
+    border-radius: .65rem;
+    cursor: pointer;
+}
+
+.individual-option:has(:checked) {
+    border-color: var(--individual-accent);
+    background: #eaf6ff;
+}
+
+.individual-option input {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: .23rem 0 0;
+    flex: none;
+    accent-color: var(--individual-accent);
+}
+
+.individual-option span, .individual-option small {
+    display: block;
+}
+
+.individual-option small, .individual-notes span {
+    color: var(--individual-muted);
+    font-size: .925rem;
+    font-weight: 400;
+}
+
+.individual-notes {
+    display: block;
+    margin: 1.5rem 0 .4rem;
+    font-weight: 700;
+}
+
+.individual-form textarea {
+    width: 100%;
+    min-height: 5rem;
+    padding: .7rem .85rem;
+    border: 1px solid var(--individual-line);
+    border-radius: .6rem;
+    color: inherit;
+    font: inherit;
+    resize: vertical;
+}
+
+.individual-form select {
+    max-width: 100%;
+    width: min(100%, 34rem);
+    margin-bottom: 1.45rem;
+    padding: .65rem;
+    border: 1px solid var(--individual-line);
+    border-radius: .6rem;
+    background: #fff;
+    color: inherit;
+    font: inherit;
+}
+
+.individual-help {
+    margin: 0 0 1rem;
+    color: var(--individual-muted);
+}
+
+.individual-form fieldset:disabled {
+    opacity: .6;
+}
+
+.individual-submit {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .85rem;
+    margin-top: 1.3rem;
+}
+
+.individual-submit button {
+    max-width: 100%;
+    min-height: 2.9rem;
+    padding: .65rem 1rem;
+    border: 1px solid var(--individual-accent);
+    border-radius: .6rem;
+    background: var(--individual-accent);
+    color: white;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.individual-submit button:disabled {
+    opacity: .55;
+    cursor: default;
+}
+
+.individual-page :focus-visible {
+    outline: 3px solid #2787be;
+    outline-offset: 3px;
+}
+
+.individual-error {
+    margin: 0 0 1.2rem;
+    color: #9d211f;
+}
+
+@media (max-width: 39rem) {
+    .individual-options { grid-template-columns: minmax(0, 1fr); }
+    .individual-submit button { width: 100%; }
+}
