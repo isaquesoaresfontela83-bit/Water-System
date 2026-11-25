@@ -127,7 +127,7 @@ export function withIndividualPlan(app, role, resources) {
             }
             if (system && (contentType.includes("text/html") || contentType.includes("text/x-component") || importers.includes(path) && contentType.includes("javascript"))) {
                 let body = rewriteAssetReferences(await response.text(), rewritePaths);
-                if (path === "/planos" && contentType.includes("text/html"))
+                if ((path === "/" || path === "/planos") && contentType.includes("text/html") && body.includes("individual-plan-card"))
                     body = body.replace("</head>", `<link rel="stylesheet" href="${individualStylesheet}"></head>`);
                 return new Response(body, { status: response.status, headers: alteredHeaders(response) });
             }

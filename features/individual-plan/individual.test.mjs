@@ -85,3 +85,13 @@ test("both health endpoints report the same identified release and keep other re
     assert.equal(one.baselineVersion, "15.23.36");
     assert.equal(await (await system.fetch(request("/api/other"))).text(), "original");
 });
+
+test("styles the fourth card when the home page serves the pricing grid", async () => {
+    const home = withIndividualPlan({
+        async fetch() {
+            return new Response('<html><head></head><body><article class="individual-plan-card"></article></body></html>',
+                { headers: { "Content-Type": "text/html" } });
+        },
+    }, "system", { css: "styles" });
+    assert.match(await (await home.fetch(request("/"))).text(), /<link rel="stylesheet" href="\/assets\/water-individual/);
+});
