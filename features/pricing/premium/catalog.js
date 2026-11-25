@@ -44,7 +44,7 @@ export const plans = liveCatalog?.plans ?? [
   label: 'INTELIGÊNCIA E ESCALA',
   description: 'Mais recursos para ampliar sua gestão.',
   featureTitle: 'Tudo do Plus, mais',
-  features: ['Fama IA com voz', 'Planejamento semanal com IA', 'Cálculo automático de frete', 'Preparação e arquivo de notas', 'NFS-e via Asaas, com configuração'],
+  features: ['Fama IA com voz', 'Planejamento semanal com IA', 'Cálculo automático de frete', 'Preparação e arquivo de notas', 'NFS-e pela SEFIN Nacional, com configuração'],
  },
 ];
 
@@ -85,7 +85,7 @@ export const featureGroups = liveCatalog?.featureGroups ?? [
    'Fama IA com voz para consultar e planejar a operação',
    'Apoio da IA ao planejamento semanal, quando habilitado',
    'Frete por distância entre CEPs e tarifa por km',
-   'Preparação e arquivo de notas, NFS-e via Asaas configurada',
+   'Preparação e arquivo de notas, NFS-e pela SEFIN Nacional configurada',
   ],
  },
 ];
