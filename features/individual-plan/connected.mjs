@@ -16,9 +16,9 @@ const individualModuleNames = [
     "water-individual-catalog.mjs", "water-individual-page.mjs", "water-individual-pricing.mjs",
     "water-individual-company.mjs", "water-individual-worker.mjs",
 ];
-const individualEncoder = new TextEncoder();
-const individualDecoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-const individualPath = (account, role) => `/accounts/${account}/workers/scripts/fama-${role}-app`;
+export const individualEncoder = new TextEncoder();
+export const individualDecoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+export const individualPath = (account, role) => `/accounts/${account}/workers/scripts/fama-${role}-app`;
 
 export function buildIndividualEntry(role, resources) {
     const original = JSON.stringify("./" + individualBaseline[role].entry);
@@ -35,7 +35,7 @@ async function individualDigest(bytes) {
     return Array.from(new Uint8Array(value), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function individualModules(api, path) {
+export async function individualModules(api, path) {
     const raw = await api.request({ method: "GET", path });
     const head = typeof raw === "string" ? raw.slice(0, 512) : individualDecoder.decode(raw.slice(0, 512));
     const boundary = head.split("\r\n")[0];
@@ -55,13 +55,13 @@ async function individualModules(api, path) {
     return parts;
 }
 
-async function individualFingerprint(parts) {
+export async function individualFingerprint(parts) {
     const entries = await Promise.all([...parts].map(async ([name, { bytes }]) => [name, await individualDigest(bytes)]));
     entries.sort((a, b) => a[0].localeCompare(b[0]));
     return individualDigest(individualEncoder.encode(JSON.stringify(entries)));
 }
 
-async function individualActive(api, path) {
+export async function individualActive(api, path) {
     const response = await api.request({ method: "GET", path: path + "/deployments", query: { per_page: 1 } });
     const deployment = response.result.deployments?.[0];
     if (deployment?.versions?.length !== 1 || deployment.versions[0].percentage !== 100)
@@ -112,12 +112,17 @@ export async function prepareIndividualWorker(api, account, role, sources, uploa
     };
     if (!upload) return result;
 
-    if ((await individualActive(api, path)).version !== active.version) throw new Error("A versão ativa mudou durante o preparo.");
+    const versionId = await uploadIndividualVersion(api, path, parts, configuration, active.version, "15.23.37", "Plano Individual");
+    return { ...result, versionId };
+}
+
+export async function uploadIndividualVersion(api, path, parts, configuration, previousVersion, version, message) {
+    if ((await individualActive(api, path)).version !== previousVersion) throw new Error("A versão ativa mudou durante o preparo.");
     const metadata = {
         main_module: individualMain,
         keep_assets: true,
         bindings: configuration.bindings.map(({ name }) => ({ name, type: "inherit" })),
-        annotations: { "workers/tag": "15.23.37", "workers/message": "Water System e Water Control · Plano Individual" },
+        annotations: { "workers/tag": version, "workers/message": message },
     };
     for (const key of ["compatibility_date", "compatibility_flags", "observability", "usage_model", "logpush", "tail_consumers", "tags", "placement", "limits"]) {
         if (configuration[key] !== undefined) metadata[key] = configuration[key];
@@ -127,8 +132,8 @@ export async function prepareIndividualWorker(api, account, role, sources, uploa
     form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
     for (const [name, { bytes, type }] of parts) form.append(name, new Blob([bytes], { type }), name);
     const saved = await api.request({ method: "POST", path: path + "/versions", query: { bindings_inherit: "strict" }, body: form });
-    if (!saved.result?.id || saved.result.id === active.version) throw new Error("A versão nova não foi confirmada.");
-    return { ...result, versionId: saved.result.id };
+    if (!saved.result?.id || saved.result.id === previousVersion) throw new Error("A versão nova não foi confirmada.");
+    return saved.result.id;
 }
 
 async function individualDeploy(api, path, version) {
@@ -156,11 +161,11 @@ export async function rollbackIndividualWorkers(api, account, staged) {
     return result;
 }
 
-export async function activateIndividualWorkers(api, account, staged) {
+export async function activateIndividualWorkers(api, account, staged, baseline = individualBaseline) {
     for (const role of ["system", "control"]) {
         const path = individualPath(account, role);
         const next = staged[role];
-        if (next.previous !== individualBaseline[role].version || (await individualActive(api, path)).version !== next.previous)
+        if (next.previous !== baseline[role].version || (await individualActive(api, path)).version !== next.previous)
             throw new Error("A produção mudou antes da publicação.");
         const saved = await api.request({ method: "GET", path: path + "/versions/" + next.versionId });
         if (saved.result?.id !== next.versionId) throw new Error("O pacote preparado não está disponível.");

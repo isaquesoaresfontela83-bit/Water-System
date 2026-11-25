@@ -1,6 +1,108 @@
 const form = document.querySelector("#individual-company-form");
+const agenda = document.querySelector("#booking-agenda");
 
-if (form) {
+if (agenda) {
+    const endpoint = "/api/admin/individual-consultations";
+    const status = agenda.querySelector("#booking-agenda-status");
+    const enter = agenda.querySelector("#booking-agenda-enter");
+    const toolbar = agenda.querySelector(".booking-agenda-toolbar");
+    const filter = agenda.querySelector("#booking-agenda-filter");
+    const list = agenda.querySelector("#booking-agenda-list");
+    const meetingTime = new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo", dateStyle: "long", timeStyle: "short",
+    });
+    const statusLabels = { pending: "Pendente", confirmed: "Confirmada", cancelled: "Cancelada" };
+    let requestVersion = 0;
+
+    const element = (tag, text, style) => {
+        const el = document.createElement(tag);
+        if (text) el.textContent = text;
+        if (style) el.className = style;
+        return el;
+    };
+
+    async function review(item, next, actions) {
+        for (const button of actions.querySelectorAll("button")) button.disabled = true;
+        try {
+            const response = await fetch(endpoint, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: item.id, status: next, updatedAt: item.updated_at }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error ?? "Não foi possível atualizar o pedido.");
+            await refresh(next === "confirmed" ? "Horário marcado como confirmado." : "Solicitação cancelada.");
+        } catch (error) {
+            status.textContent = error.message || "Não foi possível atualizar o pedido.";
+            for (const button of actions.querySelectorAll("button")) button.disabled = false;
+        }
+    }
+
+    function renderConsultation(item) {
+        const card = element("article", "", "booking-card booking-agenda-item");
+        const time = element("time", meetingTime.format(new Date(item.meeting_at)) + " (Brasília)");
+        time.dateTime = item.meeting_at;
+        card.append(element("h2", item.contact_name), time,
+            element("p", statusLabels[item.status] + " · " + item.contact_email + " · " + item.contact_phone));
+        if (item.modules.length) card.append(element("p", "Recursos: " + item.modules.join(", ")));
+        if (item.notes) card.append(element("p", item.notes));
+        const actions = element("div", "", "booking-agenda-actions");
+        if (item.status !== "cancelled") {
+            const email = element("a", "E-mail", "booking-light-button");
+            email.href = "mailto:" + encodeURIComponent(item.contact_email);
+            const phone = element("a", "WhatsApp", "booking-light-button");
+            phone.href = "https://wa.me/" + item.contact_phone.replace(/\D/g, "");
+            phone.target = "_blank";
+            phone.rel = "noopener noreferrer";
+            actions.append(email, phone);
+            if (item.status === "pending" && Date.parse(item.meeting_at) > Date.now()) {
+                const accept = element("button", "Confirmar horário", "booking-primary");
+                accept.type = "button";
+                accept.addEventListener("click", () => void review(item, "confirmed", actions));
+                actions.append(accept);
+            }
+            const cancel = element("button", "Cancelar", "booking-light-button");
+            cancel.type = "button";
+            cancel.addEventListener("click", () => void review(item, "cancelled", actions));
+            actions.append(cancel);
+        }
+        card.append(actions);
+        return card;
+    }
+
+    async function refresh(message = "") {
+        const version = ++requestVersion;
+        status.textContent = "Carregando consultorias…";
+        list.replaceChildren();
+        try {
+            const url = new URL(endpoint, location.origin);
+            if (filter.value) url.searchParams.set("status", filter.value);
+            const response = await fetch(url, { cache: "no-store" });
+            if (version !== requestVersion) return;
+            if (response.status === 401 || response.status === 403) {
+                status.textContent = "Entre com uma conta de administração para ver a agenda.";
+                enter.hidden = false;
+                toolbar.hidden = true;
+                return;
+            }
+            if (!response.ok) throw new Error("Não foi possível carregar as consultorias.");
+            const { consultations } = await response.json();
+            if (version !== requestVersion) return;
+            toolbar.hidden = false;
+            enter.hidden = true;
+            status.textContent = message || (consultations.length ? "" : "Nenhuma consultoria nesta situação.");
+            list.replaceChildren(...consultations.map(renderConsultation));
+        } catch (error) {
+            if (version === requestVersion) {
+                status.textContent = error.message;
+                toolbar.hidden = false;
+            }
+        }
+    }
+    filter.addEventListener("change", () => void refresh());
+    agenda.querySelector("#booking-agenda-refresh").addEventListener("click", () => void refresh());
+    void refresh();
+} else if (form) {
     const access = document.querySelector("#individual-access");
     const enter = document.querySelector("#individual-enter");
     const company = form.querySelector("#individual-company");
@@ -80,12 +182,15 @@ if (form) {
 } else {
     function showIndividualLink() {
         const target = document.querySelector("#companies .control-panel-heading");
-        if (!target || target.querySelector('[href="/plano-individual"]')) return;
-        const link = document.createElement("a");
-        link.href = "/plano-individual";
-        link.className = "button secondary";
-        link.textContent = "Configurar plano Individual";
-        target.append(link);
+        if (!target) return;
+        for (const [href, label] of [["/plano-individual", "Configurar plano Individual"], ["/consultorias-individual", "Agenda de consultorias"]]) {
+            if (target.querySelector(`[href="${href}"]`)) continue;
+            const link = document.createElement("a");
+            link.href = href;
+            link.className = "button secondary";
+            link.textContent = label;
+            target.append(link);
+        }
     }
 
     showIndividualLink();

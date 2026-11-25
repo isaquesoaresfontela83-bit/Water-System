@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { configureIndividualCompany, individualCompanyPlan, readIndividualCompany } from "./company.mjs";
 import { individualFeatures } from "./catalog.mjs";
+import { handleConsultationAdmin, meetingInBrasilia, validateBooking } from "./booking.mjs";
 import { withIndividualPlan } from "./worker.mjs";
 
 const standard = { name: "Plus", priceCents: 19900 };
@@ -27,23 +28,84 @@ test("adds a consultative offer and preserves the paid plan catalog", async () =
     assert.equal(direct.headers.get("location"), "/plano-individual");
 });
 
-test("consultation works for chosen resources and for undecided visitors", async () => {
+const consultationId = "4bf2107b-2b04-48e1-9718-818794ac6baf";
+const bookingValues = {
+    requestId: consultationId, name: "Lia de Teste", email: "LIA@example.invalid",
+    phone: "(61) 99999-0000", date: "2099-03-02", time: "14:30", notes: "Visitas semanais",
+};
+
+test("the site holds a consultation request with chosen or undecided resources", async () => {
+    const records = [];
+    const bookingWorker = withIndividualPlan(original, "system", {}, {
+        async assertRateLimit() {},
+        async callRpc(name, { p_record }) {
+            assert.equal(name, "water_book_individual_consultation");
+            records.push(p_record);
+            return p_record.id;
+        },
+    });
     const page = await system.fetch(request("/plano-individual"));
     const html = await page.text();
     assert.equal((html.match(/name="features"/g) ?? []).length, individualFeatures.length);
-    const response = await system.fetch(request("/plano-individual", {
-        method: "POST", body: new URLSearchParams({ features: "agenda", notes: "Visitas semanais" }),
-    }));
-    const chat = new URL(response.headers.get("location"));
-    assert.equal(response.status, 303);
-    assert.equal(chat.origin, "https://wa.me");
-    assert.match(chat.searchParams.get("text"), /Agenda e visitas.*Visitas semanais/s);
-    const undecided = await system.fetch(request("/plano-individual", { method: "POST", body: new URLSearchParams() }));
-    assert.match(new URL(undecided.headers.get("location")).searchParams.get("text"), /ajuda para escolher/);
-    const invalid = await system.fetch(request("/plano-individual", {
-        method: "POST", body: new URLSearchParams([["features", "agenda"], ["features", "agenda"]]),
-    }));
+    assert.match(html, /autocomplete="name".*autocomplete="email".*autocomplete="tel"/s);
+    assert.match(html, /type="date".*type="time"/s);
+    const send = body => bookingWorker.fetch(request("/plano-individual", { method: "POST", body: new URLSearchParams(body) }));
+    const response = await send({ ...bookingValues, features: "agenda" });
+    assert.equal(response.status, 201);
+    assert.match(await response.text(), /Solicitação recebida.*14:30.*confirma/s);
+    assert.deepEqual(records[0].modules, ["agenda"]);
+    assert.equal(records[0].contact_email, "lia@example.invalid");
+    assert.equal(records[0].contact_phone, "+5561999990000");
+    assert.equal(records[0].meeting_at, "2099-03-02T17:30:00.000Z");
+    assert.equal((await send(bookingValues)).status, 201);
+    assert.deepEqual(records[1].modules, []);
+    const invalid = await send({ ...bookingValues, email: "inválido", name: '<img src="">' });
     assert.equal(invalid.status, 400);
+    const retry = await invalid.text();
+    assert.match(retry, /Informe um e-mail válido/);
+    assert.match(retry, /&lt;img src=&quot;&quot;&gt;/);
+    assert.doesNotMatch(retry, /<img src="">/);
+    assert.equal(records.length, 2);
+});
+
+test("validates real future wall-clock times in Brasília", () => {
+    const now = new Date("2026-11-25T15:00:00.000Z");
+    assert.equal(meetingInBrasilia("2026-11-25", "12:01", now), "2026-11-25T15:01:00.000Z");
+    assert.throws(() => meetingInBrasilia("2026-11-25", "11:59", now), /já passou|não passou/);
+    assert.throws(() => meetingInBrasilia("2026-11-31", "12:01", now), /válidos/);
+    assert.throws(() => validateBooking(new URLSearchParams({ ...bookingValues, phone: "texto" }), now), /DDD/);
+});
+
+test("the agenda enforces admin access and revises a pending meeting with an exact checkpoint", async () => {
+    const record = {
+        ...validateBooking(new URLSearchParams({ ...bookingValues, features: "quotes" })),
+        status: "pending", updated_at: "2026-11-25T12:00:00Z",
+    };
+    const input = { id: record.id, status: "confirmed", updatedAt: record.updated_at };
+    const requestStaff = (method, data) => new Request("https://control.watersystem.online/api/admin/individual-consultations", {
+        method, body: data ? JSON.stringify(data) : undefined,
+    });
+    const services = {
+        async requireAdmin() { return { id: "platform-owner" }; },
+        isTrustedMutation() { return true; },
+        async selectRows() { return [record]; },
+        async selectOne() { return record; },
+        async updateRows(table, changes, where) {
+            assert.equal(table, "water_individual_consultations");
+            assert.deepEqual(where, { id: record.id, updated_at: record.updated_at, status: "pending" });
+            return [{ ...record, ...changes }];
+        },
+    };
+    const unauthorized = await handleConsultationAdmin(requestStaff("GET"), {
+        async requireAdmin() { throw Object.assign(new Error("admin only"), { status: 401 }); },
+        async selectRows() { assert.fail("A consulta não deve executar para uma visita pública."); },
+    });
+    assert.equal(unauthorized.status, 401);
+    const agenda = await handleConsultationAdmin(requestStaff("GET"), services);
+    assert.deepEqual((await agenda.json()).consultations[0].modules, ["Orçamentos em PDF"]);
+    const published = await handleConsultationAdmin(requestStaff("PATCH", input), services);
+    assert.equal((await published.json()).consultation.status, "confirmed");
+    assert.equal((await handleConsultationAdmin(requestStaff("PATCH", { ...input, updatedAt: "outra revisão" }), services)).status, 409);
 });
 
 test("a company keeps its capacity and receives only the selected features and dependencies", () => {

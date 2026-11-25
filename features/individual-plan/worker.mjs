@@ -1,9 +1,10 @@
-import { individualConsultationUrl, individualNotesLimit, individualPlan } from "./catalog.mjs";
-import { individualControlClient, individualPage, individualStylesheet } from "./page.mjs";
+import { individualPlan } from "./catalog.mjs";
+import { bookingDraft, bookingPath, ConsultationError, saveConsultation, validateBooking } from "./booking.mjs";
+import { bookingPublicClient, consultationAgendaPath, individualAgendaPage, individualControlClient, individualControlPage, individualPage, individualStylesheet } from "./page.mjs";
 import { pricingAssetRevision } from "./patch-pricing.mjs";
 
-export const releaseVersion = "15.23.37";
-export const releaseId = "2026-11-25-water-individual-plan-01";
+export const releaseVersion = "15.23.38";
+export const releaseId = "2026-11-25-water-consultation-booking-01";
 export const individualAdminPath = "/plano-individual";
 const maxFormBytes = 12_288;
 const contentHeaders = type => ({
@@ -15,13 +16,13 @@ const contentHeaders = type => ({
 
 function html(body, { status = 200, head = false } = {}) {
     const headers = contentHeaders("text/html; charset=utf-8");
-    headers["Content-Security-Policy"] = "default-src 'none'; style-src 'self'; img-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; form-action 'self' https://wa.me https://*.whatsapp.com; base-uri 'none'; frame-ancestors 'none'";
+    headers["Content-Security-Policy"] = "default-src 'none'; style-src 'self'; img-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
     return new Response(head ? null : body, { status, headers });
 }
 
 async function readConsultationForm(request) {
     if (!request.headers.get("content-type")?.split(";")[0].trim().toLowerCase().match(/^application\/x-www-form-urlencoded$/))
-        throw new TypeError("Formato inválido.");
+        throw new ConsultationError("Formato inválido. Volte ao formulário e tente novamente.", 415);
     const reader = request.body?.getReader();
     if (!reader) return new URLSearchParams();
     const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -44,18 +45,25 @@ async function readConsultationForm(request) {
     }
 }
 
-async function consult(request) {
+async function consult(request, services) {
+    let draft = {};
     try {
+        const origin = request.headers.get("origin");
+        if (origin && origin !== new URL(request.url).origin)
+            throw new ConsultationError("Abra o formulário do Water System e tente novamente.", 403);
         const body = await readConsultationForm(request);
-        const notes = body.getAll("notes");
-        if (notes.length > 1 || (notes[0]?.length ?? 0) > individualNotesLimit) throw new TypeError("Confira as informações.");
-        const location = individualConsultationUrl(body.getAll("features"), notes[0]);
-        return new Response(null, {
-            status: 303,
-            headers: { ...contentHeaders("text/plain; charset=utf-8"), Location: location },
-        });
-    } catch (error) {
-        return html(individualPage(true), { status: error instanceof RangeError ? 413 : 400 });
+        draft = bookingDraft(body);
+        const record = validateBooking(body);
+        await saveConsultation(request, record, services);
+        return html(individualPage({ scheduled: record.meeting_at }), { status: 201 });
+    } catch (cause) {
+        let error;
+        if (cause instanceof ConsultationError) error = cause;
+        else if (cause instanceof RangeError) error = new ConsultationError("A solicitação é muito grande. Reduza a observação e tente novamente.", 413);
+        else if (cause?.status === 429) error = new ConsultationError("Muitas solicitações recentes. Aguarde um pouco e tente novamente.", 429);
+        else error = new ConsultationError("Não conseguimos registrar sua solicitação agora. Tente novamente.", 503);
+        if (error.status === 409) draft.id = crypto.randomUUID();
+        return html(individualPage({ draft, error }), { status: error.status });
     }
 }
 
@@ -80,7 +88,7 @@ function asset(body, head, type, immutable = false) {
     return new Response(head ? null : body, { headers });
 }
 
-export function withIndividualPlan(app, role, resources) {
+export function withIndividualPlan(app, role, resources, bookingServices = {}) {
     const browserAssets = resources.browser ?? {};
     const importers = resources.importers ?? [];
     const rewritePaths = [...Object.keys(browserAssets), ...importers];
@@ -100,13 +108,15 @@ export function withIndividualPlan(app, role, resources) {
             }
             if (system && path === "/assinar/individual" && readable)
                 return new Response(null, { status: 302, headers: { Location: "/plano-individual", "Cache-Control": "no-store" } });
-            if (system && path === "/plano-individual") {
+            if (system && readable && path === bookingPublicClient)
+                return asset(resources.bookingClient, head, "application/javascript; charset=utf-8", true);
+            if (system && path === bookingPath) {
                 if (readable) return html(individualPage(), { head });
-                if (request.method === "POST") return consult(request);
+                if (request.method === "POST") return consult(request, bookingServices);
                 return new Response(null, { status: 405, headers: { Allow: "GET, HEAD, POST" } });
             }
-            if (!system && readable && path === individualAdminPath) {
-                const response = html(resources.adminPage, { head });
+            if (!system && readable && (path === individualAdminPath || path === consultationAgendaPath)) {
+                const response = html(path === consultationAgendaPath ? individualAgendaPage() : individualControlPage(), { head });
                 response.headers.set("X-Robots-Tag", "noindex, nofollow");
                 return response;
             }

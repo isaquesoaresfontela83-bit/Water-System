@@ -7,7 +7,7 @@ const tables = new Set([
     "fama_whatsapp_connections", "fama_whatsapp_links", "fama_whatsapp_events",
     "fama_chat_conversations", "fama_chat_messages", "fama_agenda_settings", "fama_agenda_deliveries",
 ]);
-const procedures = new Set(["fama_consume_rate_limit", "fama_create_customer_company", "schedule_warranty", "fama_whatsapp_member_access", "fama_whatsapp_claim_event", "fama_get_block_rules", "fama_recovery_payload", "fama_chat_record_message", "fama_chat_reserve_send", "fama_chat_message_page", "fama_chat_delivery", "fama_internal_chat"]);
+const procedures = new Set(["fama_consume_rate_limit", "water_book_individual_consultation", "fama_create_customer_company", "schedule_warranty", "fama_whatsapp_member_access", "fama_whatsapp_claim_event", "fama_get_block_rules", "fama_recovery_payload", "fama_chat_record_message", "fama_chat_reserve_send", "fama_chat_message_page", "fama_chat_delivery", "fama_internal_chat"]);
 const methods = new Set(["GET", "POST", "PATCH", "DELETE"]);
 export function allowedDataPath(path, method = "GET") {
     if (!methods.has(method) || !path.startsWith("/") || path.includes("\\") || /[\u0000-\u001f\u007f]/.test(path))

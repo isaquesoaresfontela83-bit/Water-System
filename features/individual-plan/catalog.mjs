@@ -39,15 +39,3 @@ export function selectIndividualFeatures(values) {
     }
     return selection;
 }
-
-export function individualConsultationUrl(values = [], notes = "") {
-    const selected = new Set(selectIndividualFeatures(values));
-    const labels = individualFeatures.filter(([id]) => selected.has(id)).map(([, label]) => label);
-    const message = ["Olá! Gostaria de uma consultoria para montar o plano Individual do Water System."];
-    if (labels.length) message.push("Recursos de interesse: " + labels.join(", ") + ".");
-    else message.push("Preciso de ajuda para escolher os recursos.");
-    if (notes.trim()) message.push("Sobre a minha operação: " + notes.trim().slice(0, individualNotesLimit));
-    const url = new URL("https://wa.me/5561991388546");
-    url.searchParams.set("text", message.join("\n\n"));
-    return url.href;
-}
