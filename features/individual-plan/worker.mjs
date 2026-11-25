@@ -3,8 +3,8 @@ import { bookingDraft, bookingPath, ConsultationError, saveConsultation, validat
 import { bookingPublicClient, consultationAgendaPath, individualAgendaPage, individualControlClient, individualControlPage, individualPage, individualStylesheet } from "./page.mjs";
 import { pricingAssetRevision } from "./patch-pricing.mjs";
 
-export const releaseVersion = "15.23.38";
-export const releaseId = "2026-11-25-water-consultation-booking-01";
+export const releaseVersion = "15.23.39";
+export const releaseId = "2026-11-25-water-individual-original-theme-01";
 export const individualAdminPath = "/plano-individual";
 const maxFormBytes = 12_288;
 const contentHeaders = type => ({

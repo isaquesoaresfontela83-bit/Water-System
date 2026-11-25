@@ -411,3 +411,80 @@
 @media (max-width: 22.5rem) {
     .booking-date-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
+
+/* The public builder uses the same dark palette as the Water System catalog. */
+.booking-page {
+    color-scheme: dark;
+    --individual-ink: #e8f1fc;
+    --individual-muted: #95adc7;
+    --individual-line: #233e59;
+    --individual-accent: #79bdff;
+    --booking-canvas: #061321;
+    --booking-surface: #0b1d31;
+    --booking-surface-raised: #10253c;
+    --booking-input: #2a4a66;
+    --booking-action: #188eec;
+    --booking-focus: #20cdf2;
+    background: radial-gradient(circle at 82% 0, #17c7ee2e, transparent 32rem), var(--booking-canvas);
+}
+
+.booking-page .individual-brand img {
+    filter: invert(.83) hue-rotate(180deg) saturate(1.25);
+}
+
+.booking-page .booking-back {
+    padding: .5rem .75rem;
+    border: 1px solid var(--individual-line);
+    border-radius: .65rem;
+    background: var(--booking-surface);
+    color: var(--individual-ink);
+    text-decoration: none;
+}
+
+.booking-page .booking-hero {
+    padding: clamp(1.25rem, 3vw, 2.35rem) 0;
+    background: transparent;
+    color: var(--individual-ink);
+}
+
+.booking-page .booking-kicker { color: var(--booking-focus); }
+.booking-page .booking-hero p:last-child,
+.booking-page .booking-sent p:not(.booking-kicker) { color: var(--individual-muted); }
+
+.booking-page .booking-card,
+.booking-page .booking-sent {
+    border: 1px solid var(--individual-line);
+    border-radius: 18px;
+    background: var(--booking-surface);
+    color: var(--individual-ink);
+    box-shadow: 0 16px 38px #0003;
+}
+
+.booking-page .booking-primary {
+    border-color: var(--booking-action);
+    border-radius: 12px;
+    background: var(--booking-action);
+    color: #fff;
+}
+
+.booking-page .booking-group summary {
+    background: var(--booking-surface-raised);
+    color: var(--individual-ink);
+}
+
+.booking-page .booking-card-heading output,
+.booking-page .booking-group-count { color: var(--individual-accent); }
+.booking-page .booking-group summary::after { border-color: var(--individual-muted); }
+.booking-page .booking-resource { border-color: var(--individual-line); }
+.booking-page .booking-resource:has(input:checked) { background: #112b44; }
+.booking-page .booking-resource input { accent-color: var(--booking-action); }
+
+.booking-page .booking-field { color: var(--individual-ink); }
+.booking-page .booking-field :is(input, textarea) {
+    border-color: var(--booking-input);
+    background: var(--booking-canvas);
+}
+.booking-page .booking-field input::placeholder { color: var(--individual-muted); opacity: 1; }
+.booking-page .booking-field input[aria-invalid="true"] { border-color: #ff9494; }
+.booking-page .booking-appointment-card .booking-error { color: #ffb0b0; }
+.booking-page :focus-visible { outline-color: var(--booking-focus); }

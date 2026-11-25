@@ -1,7 +1,7 @@
 import { individualFeatures, individualNotesLimit } from "./catalog.mjs";
 import { bookingToday, describeMeeting } from "./booking.mjs";
 
-export const individualStylesheet = "/assets/water-individual-15.23.38.css";
+export const individualStylesheet = "/assets/water-individual-15.23.39.css";
 export const individualControlClient = "/assets/water-individual-control-15.23.38.js";
 export const bookingPublicClient = "/assets/water-individual-booking-15.23.38.js";
 export const consultationAgendaPath = "/consultorias-individual";
