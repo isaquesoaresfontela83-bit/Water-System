@@ -21,7 +21,7 @@ function replaceMatches(code, pattern, count, replacement) {
 
 export function patchTenant(code) {
     let updated = 'import{readIndividualCompany as waterReadIndividual}from"../water-individual-company.mjs";\n' + code;
-    updated = replaceOne(updated, "async function _(a){", 'async function _(a,i){if(a==="individual")return waterReadIndividual(i)?.features??[];');
+    updated = replaceOne(updated, "async function _(a){", 'async function _(a,configuration){if(a==="individual")return waterReadIndividual(configuration)?.features??[];');
     updated = replaceOne(updated,
         'async function x(a,i){const e=i??(await m("organizations",{id:String(a.organization_id)},{select:"plan"}))?.plan??"inicial",n=await la(String(a.organization_id),String(a.id));return U(String(a.role),a.permissions,n,e,await _(e))}',
         `async function x(a,i,t){
