@@ -1,4 +1,4 @@
-export function createHomeWidgets({ createElement: h, cloneElement, useEffect, useState }, catalog, variants, createVariants) {
+export function createHomeWidgets({ createElement: h, cloneElement, useEffect, useRef, useState }, catalog, variants, createVariants) {
     const sizes = { small: "Pequeno", medium: "Médio", large: "Grande" };
     const defaults = { hidden: [], sizes: null };
     const Variant = createVariants(h);
@@ -20,6 +20,7 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
         .water-extra-widgets{display:grid;gap:12px;margin-bottom:12px;grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;scroll-margin-top:90px}
         .water-extra-widgets>.water-widget-custom-item{display:flex}
         .water-variant{padding:12px;min-width:0;width:100%;border-radius:12px}
+        .water-variant-switch{margin-top:8px;max-width:100%;min-height:35px;padding:3px 6px;border:1px solid var(--border);border-radius:7px;background:var(--background);color:inherit;font-size:.76rem}
         .water-variant h3{font-size:.91rem;font-weight:650;margin:0 0 8px;line-height:1.3}
         .water-variant-preview{background:var(--muted);min-height:145px;overflow:hidden}
         .water-variant-preview .water-variant-list li:nth-child(n+3){display:none}
@@ -66,58 +67,80 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
             .water-widget-indicators{width:calc(var(--water-widget-mobile-span) * 100% / 4)}
         }`;
 
+    function createSaveQueue(write, report) {
+        let active = false;
+        let pending = null;
+        async function flush() {
+            if (active || !pending) return;
+            active = true;
+            report("saving");
+            try {
+                while (pending) {
+                    const layout = pending;
+                    pending = null;
+                    try { await write(layout); }
+                    catch (error) {
+                        pending ??= layout;
+                        throw error;
+                    }
+                }
+                report("saved");
+            } catch {
+                report("error");
+            } finally {
+                active = false;
+            }
+        }
+        return { update(layout) { pending = layout; void flush(); }, retry: flush };
+    }
+
     function useHomeWidgets(organizationId) {
-        const [saved, setSaved] = useState(defaults);
-        const [draft, setDraft] = useState(null);
+        const [current, setCurrent] = useState(defaults);
+        const [editing, setEditing] = useState(false);
         const [ready, setReady] = useState(false);
-        const [saving, setSaving] = useState(false);
-        const [message, setMessage] = useState("");
+        const [status, setStatus] = useState("");
         const [attempt, setAttempt] = useState(0);
         const endpoint = "/api/home-widgets";
         const headers = { "x-organization-id": organizationId };
+        const latest = useRef(defaults);
+        const [queue] = useState(() => createSaveQueue(async layout => {
+            const response = await fetch(endpoint, {
+                method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+                body: JSON.stringify(layout), keepalive: true,
+            });
+            if (!response.ok) throw new Error();
+        }, setStatus));
 
         useEffect(() => {
             const controller = new AbortController();
-            setMessage("");
+            setStatus("");
             fetch(endpoint, { headers, signal: controller.signal, cache: "no-store" })
                 .then(async response => {
                     if (!response.ok) throw new Error();
                     const result = await response.json();
                     if (controller.signal.aborted) return;
-                    setSaved(result);
+                    latest.current = result;
+                    setCurrent(result);
                     setReady(true);
                 })
                 .catch(() => {
-                    if (!controller.signal.aborted) setMessage("Não foi possível carregar seus widgets.");
+                    if (!controller.signal.aborted) setStatus("load-error");
                 });
             return () => controller.abort();
         }, [organizationId, attempt]);
 
-        async function save(event) {
-            event.preventDefault();
-            setSaving(true);
-            setMessage("");
-            try {
-                const response = await fetch(endpoint, {
-                    method: "POST", headers: { ...headers, "Content-Type": "application/json" },
-                    body: JSON.stringify(draft),
-                });
-                if (!response.ok) throw new Error();
-                setSaved(await response.json());
-                setDraft(null);
-                setMessage("Página inicial salva.");
-            } catch {
-                setMessage("Não foi possível salvar. Suas escolhas continuam abertas para tentar novamente.");
-            } finally {
-                setSaving(false);
-            }
+        function update(change) {
+            const next = typeof change === "function" ? change(latest.current) : change;
+            if (next === latest.current) return;
+            latest.current = next;
+            setCurrent(next);
+            queue.update(next);
         }
 
         return {
-            current: draft ?? saved, draft, setDraft, ready, saving, message, save,
-            retry: () => setAttempt(value => value + 1),
-            edit: () => { setMessage(""); setDraft({ ...saved, sizes: saved.sizes ?? {} }); },
-            cancel: () => { setMessage(""); setDraft(null); },
+            current, editing, update, ready, status,
+            retry: () => ready ? queue.retry() : setAttempt(value => value + 1),
+            edit: () => setEditing(true), close: () => setEditing(false),
         };
     }
 
@@ -145,13 +168,13 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
             ({ id, label, module, size, kind, category: categoryNames[module] ?? "Geral", sizes: Object.keys(sizes) }))].filter(eligible);
         const categories = [...new Set(options.map(item => item.category))];
         const active = categories.includes(category) ? category : categories[0];
-        if (!p.ready && !p.message) return null;
+        if (!p.ready && !p.status) return null;
 
         function toggle(item) {
             const { id, kind, size } = item;
-            p.setDraft(previous => {
+            p.update(previous => {
                 if (kind) {
-                    return { ...previous, hidden: previous.hidden.includes(id)
+                    return { ...previous, sizes: previous.sizes ?? {}, hidden: previous.hidden.includes(id)
                         ? previous.hidden.filter(value => value !== id) : [...previous.hidden, id] };
                 }
                 const next = { ...previous.sizes };
@@ -164,8 +187,8 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
         function tile(item) {
             const { id, label, kind, size, description } = item;
             const variant = !kind;
-            const visible = variant ? Object.hasOwn(p.draft.sizes ?? {}, id) : !p.draft.hidden.includes(id);
-            const currentSize = p.draft.sizes?.[id] ?? previewSizes[id] ?? size;
+            const visible = variant ? Object.hasOwn(p.current.sizes ?? {}, id) : !p.current.hidden.includes(id);
+            const currentSize = p.current.sizes?.[id] ?? previewSizes[id] ?? size;
             return h("article", { key: id, className: "water-widget-tile" + (visible ? "" : " is-hidden") },
                 variant ? h(Variant, { variant: item, preview: true }) : thumbnail(kind),
                 variant ? h("small", null, description) : h("b", null, label),
@@ -173,7 +196,7 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
                     onChange: event => {
                         const value = event.currentTarget.value;
                         if (variant && !visible) setPreviewSizes(previous => ({ ...previous, [id]: value }));
-                        else p.setDraft(previous => ({ ...previous, sizes: { ...previous.sizes, [id]: value } }));
+                        else p.update(previous => ({ ...previous, sizes: { ...previous.sizes, [id]: value } }));
                     } },
                     item.sizes.map(value => h("option", { key: value, value }, sizes[value]))),
                 h("button", { type: "button", "aria-label": (visible ? "Remover " : "Adicionar ") + label,
@@ -182,12 +205,12 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
 
         return h("section", { className: "surface water-widget-editor", "aria-label": "Personalização da página inicial" },
             h("style", null, css),
-            p.draft ? h("form", { onSubmit: p.save },
+            p.editing ? h("div", null,
                 h("div", { className: "water-widget-toolbar" },
                     h("div", null, h("h2", null, "Galeria de widgets"),
-                        h("p", null, "Escolha uma categoria e deslize para comparar os modelos.")),
+                        h("p", null, "As mudanças aparecem na hora e são salvas automaticamente.")),
                     h("button", { type: "button", onClick: () => (document.getElementById("water-extra-widgets") ?? document.getElementById("water-widget-live"))?.scrollIntoView({ block: "start" }) }, "Ver na página")),
-                h("fieldset", { disabled: p.saving },
+                h("fieldset", null,
                     h("div", { className: "water-widget-categories", role: "group", "aria-label": "Categorias de widgets" },
                         categories.map(name => h("button", { key: name, type: "button", "aria-pressed": name === active,
                             onClick: () => setCategory(name) }, name))),
@@ -195,19 +218,46 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
                     h("div", { key: active, className: "water-widget-gallery", "aria-label": "Modelos de " + active },
                         options.filter(item => item.category === active).map(tile)),
                     h("div", { className: "water-widget-actions" },
-                        h("button", { type: "submit" }, p.saving ? "Salvando…" : "Salvar widgets"),
-                        h("button", { type: "button", onClick: p.cancel }, "Cancelar"),
-                        h("button", { type: "button", onClick: () => p.setDraft(defaults) }, "Restaurar padrão"))))
+                        h("button", { type: "button", onClick: p.close }, "Concluir"),
+                        h("button", { type: "button", onClick: () => p.update(defaults) }, "Restaurar padrão"))))
                 : h("button", { type: "button", onClick: p.ready ? p.edit : p.retry }, p.ready ? "Personalizar widgets" : "Tentar novamente"),
-            p.message && h("p", { role: "status" }, p.message));
+            p.status && h("p", { role: "status" }, {
+                saving: "Salvando alterações…", saved: "Alterações salvas.",
+                error: "As mudanças aparecem nesta tela, mas o salvamento falhou.",
+                "load-error": "Não foi possível carregar seus widgets.",
+            }[p.status]),
+            p.status === "error" && h("button", { type: "button", onClick: p.retry }, "Tentar salvar novamente"));
     }
 
-    function ExtraHomeWidgets({ layout, allowed, data, lowStock }) {
-        const selected = variants.filter(item => allowed.includes(item.module) && item.sizes.includes(layout.sizes?.[item.id]));
+    function swapVariant(layout, current, target) {
+        if (!Object.hasOwn(layout.sizes ?? {}, current.id) || Object.hasOwn(layout.sizes, target.id)) return layout;
+        return { ...layout, sizes: Object.fromEntries(Object.entries(layout.sizes).map(([id, size]) =>
+            id === current.id ? [target.id, target.sizes.includes(size) ? size : target.size] : [id, size])) };
+    }
+
+    function ExtraHomeWidgets({ layout, allowed, data, lowStock, update }) {
+        const available = variants.filter(item => allowed.includes(item.module));
+        const selected = Object.keys(layout.sizes ?? {}).flatMap(id => {
+            const item = available.find(candidate => candidate.id === id);
+            return item?.sizes.includes(layout.sizes[id]) ? [item] : [];
+        });
         if (!selected.length) return null;
         return h("section", { className: "water-extra-widgets", id: "water-extra-widgets", "aria-label": "Widgets adicionados" },
-            selected.map(item => h("div", { className: "water-widget-custom-item", key: item.id,
-                style: spanStyle(layout.sizes[item.id]) }, h(Variant, { variant: item, data, lowStock }))));
+            selected.map(item => {
+                const models = available.filter(model => model.category === item.category && model.id !== item.id &&
+                    !Object.hasOwn(layout.sizes, model.id));
+                return h("div", { className: "water-widget-custom-item", key: item.id,
+                    style: spanStyle(layout.sizes[item.id]) },
+                    h(Variant, { variant: item, data, lowStock },
+                        update && models.length > 0 && h("select", {
+                            className: "water-variant-switch", value: item.id, "aria-label": "Trocar modelo de " + item.label,
+                            onChange: event => {
+                                const target = models.find(model => model.id === event.currentTarget.value);
+                                if (target) update(previous => swapVariant(previous, item, target));
+                            },
+                        }, h("option", { value: item.id }, "Trocar modelo"),
+                        models.map(model => h("option", { key: model.id, value: model.id }, model.label)))));
+            }));
     }
 
     function spanStyle(size) {
@@ -244,5 +294,5 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
         return h("div", { className: "water-widget-indicators", style: widgetStyle("indicators", layout) }, element);
     }
 
-    return { useHomeWidgets, HomeWidgetEditor, applyHomeLayout, sizeHomeIndicators, ExtraHomeWidgets };
+    return { useHomeWidgets, HomeWidgetEditor, applyHomeLayout, sizeHomeIndicators, ExtraHomeWidgets, createSaveQueue, swapVariant };
 }

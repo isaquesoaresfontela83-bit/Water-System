@@ -68,7 +68,7 @@ test("a montagem mantém o asset original e aplica o editor ao endereço version
     const output = patchHomeBrowser(source, widgets, createHomeWidgets, widgetVariants, createWidgetVariants);
     for (const [id] of widgets) assert.ok(output.includes("'" + id + "'") || output.includes('waterVisible("' + id + '")'));
     const app = withHomeWidgets({ fetch: async () => new Response(source) });
-    const response = await app.fetch(new Request("https://watersystem.online/assets/cloriva-app-widget-gallery-15.23.44.js"));
+    const response = await app.fetch(new Request("https://watersystem.online/assets/cloriva-app-widget-live-15.23.45.js"));
     assert.equal(response.status, 200);
     assert.equal(await response.text(), output);
 });
@@ -107,4 +107,40 @@ test("modelos financeiros coexistem, mantêm tamanhos independentes e validam ta
     const finance = widgetVariants.filter(item => item.module === "finance");
     const previews = finance.map(variant => Widget({ variant, preview: true }).children[1].props.className);
     assert.deepEqual(previews, ["water-variant-bars", "water-variant-ring", "water-variant-list"]);
+});
+
+test("o salvamento automático envia a última mudança após uma gravação em andamento", async () => {
+    const { createSaveQueue } = createHomeWidgets({ createElement() {} }, widgets, widgetVariants, createWidgetVariants);
+    const writes = [];
+    const statuses = [];
+    let finish;
+    const queue = createSaveQueue(layout => {
+        writes.push(layout);
+        if (writes.length === 1) return new Promise(resolve => { finish = resolve; });
+    }, status => statuses.push(status));
+    queue.update({ size: "small" });
+    queue.update({ size: "medium" });
+    queue.update({ size: "large" });
+    assert.deepEqual(writes, [{ size: "small" }]);
+    finish();
+    await new Promise(setImmediate);
+    assert.deepEqual(writes, [{ size: "small" }, { size: "large" }]);
+    assert.deepEqual(statuses, ["saving", "saved"]);
+    const attempts = [];
+    const retryQueue = createSaveQueue(layout => {
+        attempts.push(layout);
+        if (attempts.length === 1) throw new Error("Offline");
+    }, () => {});
+    retryQueue.update({ size: "large" });
+    await retryQueue.retry();
+    assert.deepEqual(attempts, [{ size: "large" }, { size: "large" }]);
+});
+
+test("a troca substitui o modelo no mesmo lugar e adapta apenas tamanhos incompatíveis", () => {
+    const { swapVariant } = createHomeWidgets({ createElement() {} }, widgets, widgetVariants, createWidgetVariants);
+    const [bars, ring, due] = widgetVariants;
+    const layout = { hidden: [], sizes: { "finance-ring": "small", "finance-due": "medium", "quotes-status": "small" } };
+    const result = swapVariant(layout, ring, bars);
+    assert.deepEqual(Object.entries(result.sizes), [["finance-bars", "large"], ["finance-due", "medium"], ["quotes-status", "small"]]);
+    assert.equal(swapVariant(layout, ring, due), layout);
 });

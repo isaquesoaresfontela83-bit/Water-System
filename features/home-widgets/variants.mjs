@@ -94,8 +94,8 @@ export function createWidgetVariants(h) {
         }
     }
 
-    return function WidgetVariant({ variant, data = demo, lowStock, preview }) {
+    return function WidgetVariant({ variant, data = demo, lowStock, preview, children }) {
         return h("article", { className: "surface water-variant" + (preview ? " water-variant-preview" : "") },
-            h("h3", null, variant.label), render(variant.id, data, lowStock));
+            h("h3", null, variant.label), render(variant.id, data, lowStock), children);
     };
 }

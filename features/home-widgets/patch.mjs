@@ -1,5 +1,5 @@
 export const originalHomeAsset = "/assets/cloriva-app-weekly-agenda-15.23.36.js";
-export const homeWidgetAsset = "/assets/cloriva-app-widget-gallery-15.23.44.js";
+export const homeWidgetAsset = "/assets/cloriva-app-widget-live-15.23.45.js";
 
 export function replaceOne(source, original, replacement) {
     const position = source.indexOf(original);
@@ -44,7 +44,7 @@ export function patchHomeBrowser(source, catalog, createEditor, variants, create
         (${createEditor.toString()})(X,${JSON.stringify(catalog)},${JSON.stringify(variants)},(${createVariants.toString()}));
         function zv(e){const waterPreferences=waterUseHomeWidgets(e.organizationId);let[t,n]`);
     result = replaceOne(result, "children:[(0,Z.jsx)(lg,{organizationId:e.organizationId",
-        "children:[(0,Z.jsx)(WaterHomeWidgetEditor,{preferences:waterPreferences,allowed:e.allowed}),(0,Z.jsx)(WaterExtraHomeWidgets,{layout:waterPreferences.current,allowed:e.allowed,data:e.data,lowStock:e.settings.lowStockAlert}),(0,Z.jsx)(lg,{waterLayout:waterPreferences.current,waterEditing:!!waterPreferences.draft,organizationId:e.organizationId");
+        "children:[(0,Z.jsx)(WaterHomeWidgetEditor,{preferences:waterPreferences,allowed:e.allowed}),(0,Z.jsx)(WaterExtraHomeWidgets,{layout:waterPreferences.current,update:waterPreferences.update,allowed:e.allowed,data:e.data,lowStock:e.settings.lowStockAlert}),(0,Z.jsx)(lg,{waterLayout:waterPreferences.current,waterEditing:waterPreferences.editing,organizationId:e.organizationId");
     result = replaceOne(result, "(0,Z.jsxs)(`details`,{className:`ops-details`,open:t",
         "!waterPreferences.current.hidden.includes('indicators')&&waterSizeHomeIndicators((0,Z.jsxs)(`details`,{className:`ops-details`,open:t");
     return replaceOne(result, "t&&(0,Z.jsx)(Bv,{...e})]})]})}function Bv",
