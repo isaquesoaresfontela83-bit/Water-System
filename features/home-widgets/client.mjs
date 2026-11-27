@@ -1,12 +1,8 @@
-export function createHomeWidgets({ createElement: h, cloneElement, useEffect, useState }, catalog) {
+export function createHomeWidgets({ createElement: h, cloneElement, useEffect, useState }, catalog, variants, createVariants) {
     const sizes = { small: "Pequeno", medium: "Médio", large: "Grande" };
     const defaults = { hidden: [], sizes: null };
-    const models = [
-        { label: "Completo", description: "Todos os widgets à disposição", show: null, sizes: {}, sample: [3, 3, 6, 2, 2, 2] },
-        { label: "Operação", description: "Agenda, atendimentos e equipe", show: ["services", "stock", "week", "next", "today", "attention", "team"], sizes: { week: "large", today: "medium" }, sample: [3, 3, 6, 4, 2] },
-        { label: "Financeiro", description: "Recebimentos, caixa e propostas", show: ["received", "receivable", "quotes", "cashflow", "pipeline", "indicators"], sizes: { cashflow: "large", pipeline: "medium" }, sample: [2, 2, 2, 6, 3, 3] },
-        { label: "Compacto", description: "Indicadores e agenda de hoje", show: ["received", "services", "quotes", "today", "attention"], sizes: { today: "medium", attention: "medium" }, sample: [2, 2, 2, 3, 3] },
-    ];
+    const Variant = createVariants(h);
+    const categoryNames = { agenda: "Agenda", finance: "Financeiro", quotes: "Comercial", crm: "Comercial", inventory: "Estoque", team: "Equipe" };
     const css = `
         .water-widget-editor{padding:16px;margin-bottom:14px;min-width:0}
         .water-widget-toolbar,.water-widget-actions{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
@@ -17,12 +13,36 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
         .water-widget-editor button:disabled{cursor:default;opacity:.55}
         .water-widget-editor button:focus-visible,.water-widget-editor select:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
         .water-widget-editor button[type=submit],.water-widget-editor button[aria-pressed=true]{background:var(--primary);color:var(--primary-foreground)}
-        .water-widget-models,.water-widget-gallery{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,165px),1fr));margin:10px 0 16px}
-        .water-widget-models button{text-align:left;display:grid;gap:5px;padding:10px;align-content:start;min-width:0}
-        .water-widget-models small{line-height:1.3;opacity:.8}
-        .water-widget-model-preview{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;padding:7px;height:58px;background:var(--muted);border-radius:6px;color:var(--primary)}
-        .water-widget-model-preview i{display:block;border-radius:3px;background:currentColor;opacity:.23}
-        .water-widget-model-preview i:nth-child(3){opacity:.55}
+        .water-widget-categories{display:flex;gap:8px;overflow:auto;padding:4px 2px 8px;margin:5px 0;white-space:nowrap}
+        .water-widget-gallery{display:grid;grid-auto-flow:column;grid-auto-columns:min(82%,260px);gap:10px;overflow:auto;scroll-snap-type:x mandatory;padding:3px 2px 10px;margin:8px 0 12px}
+        .water-widget-gallery>*{scroll-snap-align:start}
+        .water-widget-gallery-help{margin-bottom:8px!important}
+        .water-extra-widgets{display:grid;gap:12px;margin-bottom:12px;grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;scroll-margin-top:90px}
+        .water-extra-widgets>.water-widget-custom-item{display:flex}
+        .water-variant{padding:12px;min-width:0;width:100%;border-radius:12px}
+        .water-variant h3{font-size:.91rem;font-weight:650;margin:0 0 8px;line-height:1.3}
+        .water-variant-preview{background:var(--muted);min-height:145px;overflow:hidden}
+        .water-variant-preview .water-variant-list li:nth-child(n+3){display:none}
+        .water-variant-empty{font-size:.83rem;opacity:.75}
+        .water-variant-legend{display:flex;flex-wrap:wrap;gap:8px;font-size:.72rem}
+        .water-variant-legend span:first-child{color:var(--primary)}
+        .water-variant-legend span:last-child{color:#7c90ae}
+        .water-variant-bar-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;text-align:center;margin-top:6px}
+        .water-variant-columns{height:60px;display:flex;gap:3px;align-items:flex-end;justify-content:center;border-bottom:1px solid var(--border)}
+        .water-variant-columns i{width:min(22px,42%);border-radius:3px 3px 0 0;background:var(--primary)}
+        .water-variant-columns i+ i{background:#7c90ae}
+        .water-variant-bar-group small{font-size:.68rem}
+        .water-variant-ring{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+        .water-variant-donut{width:54px;height:54px;border-radius:50%;background:var(--border);mask:radial-gradient(farthest-side,transparent 58%,#000 60%)}
+        .water-variant-ring dl{margin:0;font-size:.73rem}
+        .water-variant-ring dd{font-weight:650;margin:0 0 3px;white-space:nowrap}
+        .water-variant-list,.water-variant-progress{list-style:none;padding:0;margin:0;font-size:.76rem}
+        .water-variant-list li,.water-variant-progress li{display:flex;align-items:center;gap:6px;justify-content:space-between;border-bottom:1px solid var(--border);padding:5px 0}
+        .water-variant-list li span{display:grid;min-width:0;overflow-wrap:anywhere}
+        .water-variant-list small{opacity:.75}
+        .water-variant-list b{flex-shrink:0}
+        .water-variant-list .is-overdue{color:#c55252}
+        .water-variant-progress progress{min-width:14px;width:48%;accent-color:var(--primary)}
         .water-widget-tile{display:grid;gap:8px;align-content:start;min-width:0;border:1px solid var(--border);border-radius:10px;padding:9px}
         .water-widget-tile.is-hidden .water-widget-thumbnail{opacity:.55}
         .water-widget-tile b{font-size:.85rem;line-height:1.25}
@@ -40,7 +60,7 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
         .water-widget-indicators{width:calc(var(--water-widget-span) * 100% / 6);max-width:100%;overflow:auto}
         @media(max-width:767px){
             .water-widget-editor{padding:12px}
-            .water-widget-models,.water-widget-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+            .water-extra-widgets{grid-template-columns:repeat(4,minmax(0,1fr))}
             .water-widget-custom-grid.water-widget-custom-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
             .water-widget-custom-item{grid-column:span var(--water-widget-mobile-span);width:100%}
             .water-widget-indicators{width:calc(var(--water-widget-mobile-span) * 100% / 4)}
@@ -118,62 +138,88 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
     }
 
     function HomeWidgetEditor({ preferences: p, allowed }) {
-        const options = catalog.filter(([, , module]) => !module || allowed.includes(module));
+        const [category, setCategory] = useState("Financeiro");
+        const [previewSizes, setPreviewSizes] = useState({});
+        const eligible = item => !item.module || allowed.includes(item.module);
+        const options = [...variants, ...catalog.map(([id, label, module, size, kind]) =>
+            ({ id, label, module, size, kind, category: categoryNames[module] ?? "Geral", sizes: Object.keys(sizes) }))].filter(eligible);
+        const categories = [...new Set(options.map(item => item.category))];
+        const active = categories.includes(category) ? category : categories[0];
         if (!p.ready && !p.message) return null;
-        function applyModel(model) {
-            const available = options.map(([id]) => id);
-            const selected = model.show?.filter(id => available.includes(id)) ?? available;
-            if (!selected.length) return;
-            p.setDraft({ hidden: catalog.map(([id]) => id).filter(id => available.includes(id) && !selected.includes(id)),
-                sizes: Object.fromEntries(Object.entries(model.sizes).filter(([id]) => selected.includes(id))) });
+
+        function toggle(item) {
+            const { id, kind, size } = item;
+            p.setDraft(previous => {
+                if (kind) {
+                    return { ...previous, hidden: previous.hidden.includes(id)
+                        ? previous.hidden.filter(value => value !== id) : [...previous.hidden, id] };
+                }
+                const next = { ...previous.sizes };
+                if (Object.hasOwn(next, id)) delete next[id];
+                else next[id] = previewSizes[id] ?? size;
+                return { ...previous, sizes: next };
+            });
         }
-        function toggle(id) {
-            p.setDraft(previous => ({ ...previous, hidden: previous.hidden.includes(id)
-                ? previous.hidden.filter(value => value !== id) : [...previous.hidden, id] }));
+
+        function tile(item) {
+            const { id, label, kind, size, description } = item;
+            const variant = !kind;
+            const visible = variant ? Object.hasOwn(p.draft.sizes ?? {}, id) : !p.draft.hidden.includes(id);
+            const currentSize = p.draft.sizes?.[id] ?? previewSizes[id] ?? size;
+            return h("article", { key: id, className: "water-widget-tile" + (visible ? "" : " is-hidden") },
+                variant ? h(Variant, { variant: item, preview: true }) : thumbnail(kind),
+                variant ? h("small", null, description) : h("b", null, label),
+                h("select", { "aria-label": "Tamanho de " + label, value: currentSize,
+                    onChange: event => {
+                        const value = event.currentTarget.value;
+                        if (variant && !visible) setPreviewSizes(previous => ({ ...previous, [id]: value }));
+                        else p.setDraft(previous => ({ ...previous, sizes: { ...previous.sizes, [id]: value } }));
+                    } },
+                    item.sizes.map(value => h("option", { key: value, value }, sizes[value]))),
+                h("button", { type: "button", "aria-label": (visible ? "Remover " : "Adicionar ") + label,
+                    onClick: () => toggle(item) }, visible ? "Remover" : "Adicionar"));
         }
-        function changeSize(id, size) {
-            p.setDraft(previous => ({ ...previous, sizes: { ...previous.sizes, [id]: size } }));
-        }
+
         return h("section", { className: "surface water-widget-editor", "aria-label": "Personalização da página inicial" },
             h("style", null, css),
             p.draft ? h("form", { onSubmit: p.save },
                 h("div", { className: "water-widget-toolbar" },
-                    h("div", null, h("h2", null, "Personalizar página inicial"),
-                        h("p", null, "As mudanças aparecem na página abaixo enquanto você edita.")),
-                    h("button", { type: "button", onClick: () => document.getElementById("water-widget-live")?.scrollIntoView({ block: "start" }) }, "Ver prévia ao vivo")),
+                    h("div", null, h("h2", null, "Galeria de widgets"),
+                        h("p", null, "Escolha uma categoria e deslize para comparar os modelos.")),
+                    h("button", { type: "button", onClick: () => (document.getElementById("water-extra-widgets") ?? document.getElementById("water-widget-live"))?.scrollIntoView({ block: "start" }) }, "Ver na página")),
                 h("fieldset", { disabled: p.saving },
-                    h("legend", null, "Modelos de layout"),
-                    h("div", { className: "water-widget-models" }, models.map(model =>
-                        h("button", { key: model.label, type: "button", onClick: () => applyModel(model),
-                            disabled: model.show && !options.some(([id]) => model.show.includes(id)) },
-                            h("span", { className: "water-widget-model-preview", "aria-hidden": true },
-                                model.sample.map((span, index) => h("i", { key: index, style: { gridColumn: "span " + span } }))),
-                            h("strong", null, model.label), h("small", null, model.description)))),
-                    h("h3", null, "Galeria de widgets"),
-                    h("div", { className: "water-widget-gallery" }, options.map(([id, label, , fallbackSize, kind]) => {
-                        const visible = !p.draft.hidden.includes(id);
-                        return h("article", { key: id, className: "water-widget-tile" + (visible ? "" : " is-hidden") },
-                            thumbnail(kind), h("b", null, label),
-                            h("select", { "aria-label": "Tamanho de " + label, value: p.draft.sizes?.[id] ?? fallbackSize,
-                                onChange: event => changeSize(id, event.currentTarget.value) },
-                                Object.entries(sizes).map(([value, name]) => h("option", { key: value, value }, name))),
-                            h("button", { type: "button", "aria-label": (visible ? "Remover " : "Adicionar ") + label,
-                                onClick: () => toggle(id) }, visible ? "Remover" : "Adicionar"));
-                    })),
+                    h("div", { className: "water-widget-categories", role: "group", "aria-label": "Categorias de widgets" },
+                        categories.map(name => h("button", { key: name, type: "button", "aria-pressed": name === active,
+                            onClick: () => setCategory(name) }, name))),
+                    h("p", { className: "water-widget-gallery-help" }, "As prévias da galeria usam dados de exemplo."),
+                    h("div", { key: active, className: "water-widget-gallery", "aria-label": "Modelos de " + active },
+                        options.filter(item => item.category === active).map(tile)),
                     h("div", { className: "water-widget-actions" },
-                        h("button", { type: "submit" }, p.saving ? "Salvando…" : "Salvar layout"),
+                        h("button", { type: "submit" }, p.saving ? "Salvando…" : "Salvar widgets"),
                         h("button", { type: "button", onClick: p.cancel }, "Cancelar"),
                         h("button", { type: "button", onClick: () => p.setDraft(defaults) }, "Restaurar padrão"))))
                 : h("button", { type: "button", onClick: p.ready ? p.edit : p.retry }, p.ready ? "Personalizar widgets" : "Tentar novamente"),
             p.message && h("p", { role: "status" }, p.message));
     }
 
+    function ExtraHomeWidgets({ layout, allowed, data, lowStock }) {
+        const selected = variants.filter(item => allowed.includes(item.module) && item.sizes.includes(layout.sizes?.[item.id]));
+        if (!selected.length) return null;
+        return h("section", { className: "water-extra-widgets", id: "water-extra-widgets", "aria-label": "Widgets adicionados" },
+            selected.map(item => h("div", { className: "water-widget-custom-item", key: item.id,
+                style: spanStyle(layout.sizes[item.id]) }, h(Variant, { variant: item, data, lowStock }))));
+    }
+
+    function spanStyle(size) {
+        return { "--water-widget-span": { small: 2, medium: 3, large: 6 }[size],
+            "--water-widget-mobile-span": { small: 2, medium: 3, large: 4 }[size] };
+    }
+
     function widgetStyle(id, layout) {
         const entry = catalog.find(([key]) => key === id);
         if (!entry) throw new Error("Widget desconhecido: " + id);
         const size = layout.sizes[id] ?? entry[3];
-        return { "--water-widget-span": { small: 2, medium: 3, large: 6 }[size],
-            "--water-widget-mobile-span": { small: 2, medium: 3, large: 4 }[size] };
+        return spanStyle(size);
     }
 
     function applyHomeLayout(element, layout, editing) {
@@ -198,5 +244,5 @@ export function createHomeWidgets({ createElement: h, cloneElement, useEffect, u
         return h("div", { className: "water-widget-indicators", style: widgetStyle("indicators", layout) }, element);
     }
 
-    return { useHomeWidgets, HomeWidgetEditor, applyHomeLayout, sizeHomeIndicators };
+    return { useHomeWidgets, HomeWidgetEditor, applyHomeLayout, sizeHomeIndicators, ExtraHomeWidgets };
 }

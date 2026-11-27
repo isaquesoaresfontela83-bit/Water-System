@@ -1,6 +1,7 @@
-import { widgets } from "./catalog.mjs";
+import { widgets, widgetVariants } from "./catalog.mjs";
 
 const supportedSizes = new Set(["small", "medium", "large"]);
+const variantSizes = new Map(widgetVariants.map(({ id, sizes }) => [id, new Set(sizes)]));
 const ids = new Set(widgets.map(([id]) => id));
 const reply = (body, status = 200) => Response.json(body, {
     status, headers: { "Cache-Control": "private, no-store" },
@@ -52,7 +53,7 @@ export async function handleHomeWidgets(request, db, requireTenant, assertRateLi
         let hidden = preference?.hidden;
         const sizes = preference?.sizes ?? null;
         if (sizes !== null && (typeof sizes !== "object" || Array.isArray(sizes) ||
-            Object.entries(sizes).some(([id, size]) => !ids.has(id) || !supportedSizes.has(size))))
+            Object.entries(sizes).some(([id, size]) => !(variantSizes.get(id)?.has(size) ?? (ids.has(id) && supportedSizes.has(size))))))
             return reply({ error: "Tamanho de widget inválido." }, 400);
         if (!Array.isArray(hidden) || hidden.length > ids.size || hidden.some(id => !ids.has(id)))
             return reply({ error: "Preferências inválidas." }, 400);

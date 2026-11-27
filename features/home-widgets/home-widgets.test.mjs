@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { handleHomeWidgets } from "./api.mjs";
+import { createWidgetVariants } from "./variants.mjs";
 import { createHomeWidgets } from "./client.mjs";
-import { widgets } from "./catalog.mjs";
+import { widgets, widgetVariants } from "./catalog.mjs";
 import { patchHomeBrowser } from "./patch.mjs";
 import { withHomeWidgets } from "./worker.mjs";
 
@@ -64,10 +65,10 @@ test("a montagem mantém o asset original e aplica o editor ao endereço version
     skip: !process.env.WATER_ACTIVE_HOME_ASSET,
 }, async () => {
     const source = readFileSync(process.env.WATER_ACTIVE_HOME_ASSET, "utf8");
-    const output = patchHomeBrowser(source, widgets, createHomeWidgets);
+    const output = patchHomeBrowser(source, widgets, createHomeWidgets, widgetVariants, createWidgetVariants);
     for (const [id] of widgets) assert.ok(output.includes("'" + id + "'") || output.includes('waterVisible("' + id + '")'));
     const app = withHomeWidgets({ fetch: async () => new Response(source) });
-    const response = await app.fetch(new Request("https://watersystem.online/assets/cloriva-app-widget-studio-15.23.43.js"));
+    const response = await app.fetch(new Request("https://watersystem.online/assets/cloriva-app-widget-gallery-15.23.44.js"));
     assert.equal(response.status, 200);
     assert.equal(await response.text(), output);
 });
@@ -75,7 +76,7 @@ test("a montagem mantém o asset original e aplica o editor ao endereço version
 test("a prévia mantém os cartões reais e aplica três larguras no celular e no desktop", () => {
     const createElement = (type, props, ...children) => ({ type, props: { ...props, children } });
     const cloneElement = (element, props, children) => createElement(element.type, { ...element.props, ...props }, ...children);
-    const { applyHomeLayout } = createHomeWidgets({ createElement, cloneElement }, widgets);
+    const { applyHomeLayout } = createHomeWidgets({ createElement, cloneElement }, widgets, widgetVariants, createWidgetVariants);
     const week = createElement("section", { name: "Agenda da semana" });
     const radar = createElement("section", { name: "Atenção agora" });
     const original = createElement("div", {}, createElement("div", { className: "ops-grid" }, week, false, false, radar));
@@ -88,4 +89,22 @@ test("a prévia mantém os cartões reais e aplica três larguras no celular e n
     assert.equal(resized[0].props.style["--water-widget-span"], 3);
     assert.equal(resized[0].props.style["--water-widget-mobile-span"], 3);
     assert.equal(resized.length, 2);
+});
+
+test("modelos financeiros coexistem, mantêm tamanhos independentes e validam tamanhos permitidos", async () => {
+    const call = testService();
+    const sizes = { "finance-bars": "large", "finance-ring": "small", "finance-due": "medium" };
+    assert.equal((await call({ hidden: [], sizes })).status, 200);
+    assert.deepEqual(await (await call()).json(), { hidden: [], sizes });
+    assert.equal((await call({ hidden: [], sizes: { "finance-bars": "small" } })).status, 400);
+    const createElement = (type, props, ...children) => ({ type, props, children });
+    const { ExtraHomeWidgets } = createHomeWidgets({ createElement }, widgets, widgetVariants, createWidgetVariants);
+    assert.equal(ExtraHomeWidgets({ layout: { sizes }, allowed: [], data: {} }), null);
+    const output = ExtraHomeWidgets({ layout: { sizes }, allowed: ["finance"], data: {} });
+    assert.deepEqual(output.children[0].map(child => child.props.key), Object.keys(sizes));
+    assert.deepEqual(output.children[0].map(child => child.props.style["--water-widget-span"]), [6, 2, 3]);
+    const Widget = createWidgetVariants(createElement);
+    const finance = widgetVariants.filter(item => item.module === "finance");
+    const previews = finance.map(variant => Widget({ variant, preview: true }).children[1].props.className);
+    assert.deepEqual(previews, ["water-variant-bars", "water-variant-ring", "water-variant-list"]);
 });

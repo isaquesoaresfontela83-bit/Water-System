@@ -1,4 +1,5 @@
-import { widgets } from "./catalog.mjs";
+import { widgets, widgetVariants } from "./catalog.mjs";
+import { createWidgetVariants } from "./variants.mjs";
 import { createHomeWidgets } from "./client.mjs";
 import { originalHomeAsset, homeWidgetAsset, patchHomeBrowser } from "./patch.mjs";
 
@@ -14,7 +15,7 @@ export function withHomeWidgets(app) {
             url.pathname = originalHomeAsset;
             const original = await app.fetch(new Request(url, { method: "GET" }), env, context);
             if (!original.ok) return original;
-            const code = patchHomeBrowser(await original.text(), widgets, createHomeWidgets);
+            const code = patchHomeBrowser(await original.text(), widgets, createHomeWidgets, widgetVariants, createWidgetVariants);
             return new Response(request.method === "HEAD" ? null : code, {
                 headers: {
                     "Content-Type": "application/javascript; charset=utf-8",

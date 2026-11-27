@@ -1,5 +1,5 @@
 export const originalHomeAsset = "/assets/cloriva-app-weekly-agenda-15.23.36.js";
-export const homeWidgetAsset = "/assets/cloriva-app-widget-studio-15.23.43.js";
+export const homeWidgetAsset = "/assets/cloriva-app-widget-gallery-15.23.44.js";
 
 export function replaceOne(source, original, replacement) {
     const position = source.indexOf(original);
@@ -8,7 +8,7 @@ export function replaceOne(source, original, replacement) {
     return source.slice(0, position) + replacement + source.slice(position + original.length);
 }
 
-export function patchHomeBrowser(source, catalog, createEditor) {
+export function patchHomeBrowser(source, catalog, createEditor, variants, createVariants) {
     const start = source.indexOf("function lg({organizationId:");
     const end = source.indexOf("function ", start + 12);
     if (start < 0 || end < 0) throw new Error("Central de operações indisponível.");
@@ -40,11 +40,11 @@ export function patchHomeBrowser(source, catalog, createEditor) {
         'return waterApplyHomeLayout((0,Z.jsxs)(`div`,{className:`operations-center`');
     operation = replaceOne(operation, '}var ug=768;', ',waterLayout,waterEditing)}var ug=768;');
     let result = source.slice(0, start) + operation + source.slice(end);
-    result = replaceOne(result, "function zv(e){let[t,n]", `const {useHomeWidgets:waterUseHomeWidgets,HomeWidgetEditor:WaterHomeWidgetEditor,applyHomeLayout:waterApplyHomeLayout,sizeHomeIndicators:waterSizeHomeIndicators}=
-        (${createEditor.toString()})(X,${JSON.stringify(catalog)});
+    result = replaceOne(result, "function zv(e){let[t,n]", `const {useHomeWidgets:waterUseHomeWidgets,HomeWidgetEditor:WaterHomeWidgetEditor,applyHomeLayout:waterApplyHomeLayout,sizeHomeIndicators:waterSizeHomeIndicators,ExtraHomeWidgets:WaterExtraHomeWidgets}=
+        (${createEditor.toString()})(X,${JSON.stringify(catalog)},${JSON.stringify(variants)},(${createVariants.toString()}));
         function zv(e){const waterPreferences=waterUseHomeWidgets(e.organizationId);let[t,n]`);
     result = replaceOne(result, "children:[(0,Z.jsx)(lg,{organizationId:e.organizationId",
-        "children:[(0,Z.jsx)(WaterHomeWidgetEditor,{preferences:waterPreferences,allowed:e.allowed}),(0,Z.jsx)(lg,{waterLayout:waterPreferences.current,waterEditing:!!waterPreferences.draft,organizationId:e.organizationId");
+        "children:[(0,Z.jsx)(WaterHomeWidgetEditor,{preferences:waterPreferences,allowed:e.allowed}),(0,Z.jsx)(WaterExtraHomeWidgets,{layout:waterPreferences.current,allowed:e.allowed,data:e.data,lowStock:e.settings.lowStockAlert}),(0,Z.jsx)(lg,{waterLayout:waterPreferences.current,waterEditing:!!waterPreferences.draft,organizationId:e.organizationId");
     result = replaceOne(result, "(0,Z.jsxs)(`details`,{className:`ops-details`,open:t",
         "!waterPreferences.current.hidden.includes('indicators')&&waterSizeHomeIndicators((0,Z.jsxs)(`details`,{className:`ops-details`,open:t");
     return replaceOne(result, "t&&(0,Z.jsx)(Bv,{...e})]})]})}function Bv",

@@ -2,8 +2,8 @@ import { individualActive, individualDecoder, individualEncoder, individualFinge
 import { homeWidgetAsset, replaceOne } from "./patch.mjs";
 
 export const homeWidgetsBaseline = {
-    system: { version: "d6a60a2a-73bd-46c3-9926-fd359bad5a56", hash: "4ea66173df7f2a5e3a9f913d14f96052320cf2d29699c4969575a0a64cc230c7", modules: 162, bindings: 41 },
-    control: { version: "9f5c3992-962c-4338-9f81-874be18d3282", hash: "0327a724dd0e76f3cf23e97712adc7181c534e3aafed1c6c0011dbd1b1dfa3d0", modules: 85, bindings: 29 },
+    system: { version: "8900e76f-c412-4080-9cca-c9fda8b89321", hash: "058318af485e4e57418b547ec7fefb34bcb8b1e1b02d70a81505b2c6ca03254b", modules: 162, bindings: 41 },
+    control: { version: "4ad9c1a9-3db2-41bc-812c-5e999c817c49", hash: "287172aaf1582f54f88812abce6d5a2e260e820722df4a09b24af924d6b88d9f", modules: 85, bindings: 29 },
 };
 
 export async function prepareHomeWidgets(api, account, role, modules, upload = false) {
@@ -20,13 +20,13 @@ export async function prepareHomeWidgets(api, account, role, modules, upload = f
     const read = name => individualDecoder.decode(parts.get(name).bytes);
     const releaseModule = "water-individual-worker.mjs";
     const versionSource = read(releaseModule)
-        .replaceAll("2026-11-27-water-home-widgets-01", "2026-11-27-water-widget-studio-01")
-        .replaceAll("15.23.42", "15.23.43");
+        .replaceAll("2026-11-27-water-widget-studio-01", "2026-11-27-water-widget-gallery-01")
+        .replaceAll("15.23.43", "15.23.44");
     if (versionSource === read(releaseModule)) throw new Error("Identificador da versão ativa não encontrado.");
     const changes = new Map([[releaseModule, versionSource]]);
 
     if (role === "system") {
-        const previousAsset = "assets/cloriva-app-home-widgets-15.23.42.js";
+        const previousAsset = "assets/cloriva-app-widget-studio-15.23.43.js";
         for (const name of ["__vite_rsc_assets_manifest.js", "ssr/__vite_rsc_assets_manifest.js", "water-quote-assets.mjs", "index.js"])
             changes.set(name, replaceOne(read(name), previousAsset, homeWidgetAsset.slice(1)));
         for (const [name, code] of Object.entries(modules)) changes.set(name, code);
@@ -39,6 +39,6 @@ export async function prepareHomeWidgets(api, account, role, modules, upload = f
         inheritedBindings: baseline.bindings, changes: [...changes.keys()],
     };
     if (!upload) return result;
-    const versionId = await uploadIndividualVersion(api, path, parts, config, active.version, "15.23.43", "Editor visual de widgets");
+    const versionId = await uploadIndividualVersion(api, path, parts, config, active.version, "15.23.44", "Galeria de widgets por categoria");
     return { ...result, versionId };
 }
