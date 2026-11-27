@@ -7,4 +7,4 @@ const portable = ["../individual-plan/connected.mjs", "./patch.mjs", "./release.
 const modules = Object.fromEntries(["catalog", "client", "patch", "api", "worker"]
     .map(name => ["water-home-widgets-" + name + ".mjs", read("./" + name + ".mjs")
         .replace(/"\.\/(catalog|client|patch)\.mjs"/g, '"./water-home-widgets-$1.mjs"')]));
-process.stdout.write(JSON.stringify({ portable, modules, schema: read("./schema.sql") }));
+process.stdout.write(JSON.stringify({ portable, modules, schema: read("./schema.sql"), migration: read("./add-sizes.sql") }));

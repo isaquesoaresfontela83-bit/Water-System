@@ -1,5 +1,6 @@
 import { widgets } from "./catalog.mjs";
 
+const supportedSizes = new Set(["small", "medium", "large"]);
 const ids = new Set(widgets.map(([id]) => id));
 const reply = (body, status = 200) => Response.json(body, {
     status, headers: { "Cache-Control": "private, no-store" },
@@ -12,9 +13,10 @@ export async function handleHomeWidgets(request, db, requireTenant, assertRateLi
             return reply({ error: "Selecione a empresa para continuar." }, 403);
 
         if (request.method === "GET") {
-            const row = await db.prepare("SELECT hidden FROM water_home_widgets WHERE user_id = ? AND organization_id = ?")
+            const row = await db.prepare("SELECT hidden, sizes FROM water_home_widgets WHERE user_id = ? AND organization_id = ?")
                 .bind(user.id, organization.id).first();
-            return reply({ hidden: row ? JSON.parse(row.hidden).filter(id => ids.has(id)) : [] });
+            return reply({ hidden: row ? JSON.parse(row.hidden).filter(id => ids.has(id)) : [],
+                sizes: row?.sizes ? JSON.parse(row.sizes) : null });
         }
         if (request.method !== "POST")
             return reply({ error: "Método inválido." }, 405);
@@ -44,17 +46,22 @@ export async function handleHomeWidgets(request, db, requireTenant, assertRateLi
             reader.releaseLock();
         }
 
-        let hidden;
-        try { hidden = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, length)))?.hidden; }
+        let preference;
+        try { preference = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, length))); }
         catch { return reply({ error: "Preferências inválidas." }, 400); }
+        let hidden = preference?.hidden;
+        const sizes = preference?.sizes ?? null;
+        if (sizes !== null && (typeof sizes !== "object" || Array.isArray(sizes) ||
+            Object.entries(sizes).some(([id, size]) => !ids.has(id) || !supportedSizes.has(size))))
+            return reply({ error: "Tamanho de widget inválido." }, 400);
         if (!Array.isArray(hidden) || hidden.length > ids.size || hidden.some(id => !ids.has(id)))
             return reply({ error: "Preferências inválidas." }, 400);
 
         hidden = [...new Set(hidden)];
-        await db.prepare(`INSERT INTO water_home_widgets (user_id, organization_id, hidden)
-            VALUES (?, ?, ?) ON CONFLICT(user_id, organization_id) DO UPDATE SET hidden = excluded.hidden`)
-            .bind(user.id, organization.id, JSON.stringify(hidden)).run();
-        return reply({ hidden });
+        await db.prepare(`INSERT INTO water_home_widgets (user_id, organization_id, hidden, sizes)
+            VALUES (?, ?, ?, ?) ON CONFLICT(user_id, organization_id) DO UPDATE SET hidden = excluded.hidden, sizes = excluded.sizes`)
+            .bind(user.id, organization.id, JSON.stringify(hidden), sizes === null ? null : JSON.stringify(sizes)).run();
+        return reply({ hidden, sizes });
     } catch (error) {
         if (error instanceof RequestError) return reply({ error: error.message }, error.status);
         return reply({ error: "Não foi possível acessar suas preferências. Tente novamente." }, 503);

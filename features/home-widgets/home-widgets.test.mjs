@@ -39,13 +39,13 @@ function testService() {
 
 test("as escolhas ficam na sessão da conta e são isoladas entre usuários e empresas", async () => {
     const call = testService();
-    assert.deepEqual(await (await call()).json(), { hidden: [] });
-    assert.equal((await call({ hidden: ["week", "stock", "week"] })).status, 200);
-    assert.deepEqual(await (await call()).json(), { hidden: ["week", "stock"] });
-    assert.deepEqual(await (await call(undefined, { user: "bob" })).json(), { hidden: [] });
-    assert.deepEqual(await (await call(undefined, { company: "outro" })).json(), { hidden: [] });
+    assert.deepEqual(await (await call()).json(), { hidden: [], sizes: null });
+    assert.equal((await call({ hidden: ["week", "stock", "week"], sizes: { week: "large" } })).status, 200);
+    assert.deepEqual(await (await call()).json(), { hidden: ["week", "stock"], sizes: { week: "large" } });
+    assert.deepEqual(await (await call(undefined, { user: "bob" })).json(), { hidden: [], sizes: null });
+    assert.deepEqual(await (await call(undefined, { company: "outro" })).json(), { hidden: [], sizes: null });
     assert.equal((await call({ hidden: [] })).status, 200);
-    assert.deepEqual(await (await call()).json(), { hidden: [] });
+    assert.deepEqual(await (await call()).json(), { hidden: [], sizes: null });
 });
 
 test("protege a sessão e rejeita empresas divergentes, origens externas e widgets desconhecidos", async () => {
@@ -54,8 +54,10 @@ test("protege a sessão e rejeita empresas divergentes, origens externas e widge
     assert.equal((await call({ hidden: ["week"] }, { selected: "outro" })).status, 403);
     assert.equal((await call({ hidden: ["week"] }, { origin: "https://other.example" })).status, 403);
     assert.equal((await call({ hidden: ["unknown"] })).status, 400);
+    assert.equal((await call({ hidden: [], sizes: { week: "giant" } })).status, 400);
+    assert.equal((await call({ hidden: [], sizes: { unknown: "large" } })).status, 400);
     assert.equal((await call({ hidden: ["x".repeat(2000)] })).status, 413);
-    assert.deepEqual(await (await call()).json(), { hidden: [] });
+    assert.deepEqual(await (await call()).json(), { hidden: [], sizes: null });
 });
 
 test("a montagem mantém o asset original e aplica o editor ao endereço versionado", {
@@ -65,7 +67,25 @@ test("a montagem mantém o asset original e aplica o editor ao endereço version
     const output = patchHomeBrowser(source, widgets, createHomeWidgets);
     for (const [id] of widgets) assert.ok(output.includes("'" + id + "'") || output.includes('waterVisible("' + id + '")'));
     const app = withHomeWidgets({ fetch: async () => new Response(source) });
-    const response = await app.fetch(new Request("https://watersystem.online/assets/cloriva-app-home-widgets-15.23.42.js"));
+    const response = await app.fetch(new Request("https://watersystem.online/assets/cloriva-app-widget-studio-15.23.43.js"));
     assert.equal(response.status, 200);
     assert.equal(await response.text(), output);
+});
+
+test("a prévia mantém os cartões reais e aplica três larguras no celular e no desktop", () => {
+    const createElement = (type, props, ...children) => ({ type, props: { ...props, children } });
+    const cloneElement = (element, props, children) => createElement(element.type, { ...element.props, ...props }, ...children);
+    const { applyHomeLayout } = createHomeWidgets({ createElement, cloneElement }, widgets);
+    const week = createElement("section", { name: "Agenda da semana" });
+    const radar = createElement("section", { name: "Atenção agora" });
+    const original = createElement("div", {}, createElement("div", { className: "ops-grid" }, week, false, false, radar));
+    assert.equal(applyHomeLayout(original, { sizes: null }, false), original);
+    const defaults = applyHomeLayout(original, { sizes: {} }, true).props.children[0].props.children;
+    assert.equal(defaults[0].props.style["--water-widget-span"], 6);
+    assert.equal(defaults[1].props.style["--water-widget-mobile-span"], 2);
+    const resized = applyHomeLayout(original, { sizes: { week: "medium" } }, true).props.children[0].props.children;
+    assert.equal(resized[0].props.children[0], week);
+    assert.equal(resized[0].props.style["--water-widget-span"], 3);
+    assert.equal(resized[0].props.style["--water-widget-mobile-span"], 3);
+    assert.equal(resized.length, 2);
 });
