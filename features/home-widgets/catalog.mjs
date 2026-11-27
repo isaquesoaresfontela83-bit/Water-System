@@ -1,0 +1,16 @@
+export const widgets = [
+    ["received", "Recebido no mês", "finance"],
+    ["services", "Serviços hoje", "agenda"],
+    ["receivable", "A receber", "finance"],
+    ["quotes", "Orçamentos abertos", "quotes"],
+    ["stock", "Estoque baixo", "inventory"],
+    ["week", "Agenda da semana", "agenda"],
+    ["next", "Próximo atendimento", "agenda"],
+    ["today", "Agenda de hoje", "agenda"],
+    ["attention", "Atenção agora"],
+    ["cashflow", "Fluxo financeiro", "finance"],
+    ["pipeline", "Pipeline comercial", "crm"],
+    ["activity", "Últimos registros"],
+    ["team", "Equipe em campo", "team"],
+    ["indicators", "Indicadores detalhados"],
+];

@@ -1,3 +1,3 @@
-export const FAMA_VERSION = "15.23.41";
-export const FAMA_RELEASE_DATE = "25/11/2026";
-export const FAMA_RELEASE_ID = "2026-11-25-water-sefin-national-02";
+export const FAMA_VERSION = "15.23.42";
+export const FAMA_RELEASE_DATE = "27/11/2026";
+export const FAMA_RELEASE_ID = "2026-11-27-water-home-widgets-01";
